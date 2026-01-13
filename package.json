@@ -1,0 +1,62 @@
+{
+  "name": "xingyun-doc-platform",
+  "version": "1.0.0",
+  "description": "智能文档处理平台 - AI驱动的文档生成与编辑桌面应用",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "keywords": ["electron", "vue", "tiptap", "ai", "document"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "vue": "^3.4.0",
+    "@tiptap/vue-3": "^2.1.13",
+    "@tiptap/starter-kit": "^2.1.13",
+    "@tiptap/extension-document": "^2.1.13",
+    "@tiptap/extension-paragraph": "^2.1.13",
+    "@tiptap/extension-text": "^2.1.13",
+    "@tiptap/extension-heading": "^2.1.13",
+    "@tiptap/extension-bold": "^2.1.13",
+    "@tiptap/extension-italic": "^2.1.13",
+    "@tiptap/extension-underline": "^2.1.13",
+    "@tiptap/extension-image": "^2.1.13",
+    "@tiptap/extension-table": "^2.1.13",
+    "@tiptap/extension-table-row": "^2.1.13",
+    "@tiptap/extension-table-cell": "^2.1.13",
+    "@tiptap/extension-table-header": "^2.1.13",
+    "pinia": "^2.1.7",
+    "axios": "^1.6.2",
+    "lucide-vue-next": "^0.294.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6"
+  },
+  "build": {
+    "appId": "com.xingyun.docplatform",
+    "productName": "行云文档",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    }
+  }
+}
