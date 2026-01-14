@@ -8,12 +8,32 @@
 | -------- | -------- | ---------------------- | ------------------ | ------------------ | --------- |
 | 用户注册 | POST     | `/api/auth/register` | `stores/auth.js` | `routes/auth.py` | ✅ 已完成 |
 | 用户登录 | POST     | `/api/auth/login`    | `stores/auth.js` | `routes/auth.py` | ✅ 已完成 |
+| 获取项目列表 | GET | `/api/projects` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
+| 创建项目 | POST | `/api/projects` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
+| 更新项目 | PUT | `/api/projects/<id>` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
+| 删除项目 | DELETE | `/api/projects/<id>` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
+| 获取资源列表 | GET | `/api/projects/<id>/resources` | `services/resources.js` | `routes/resources.py` | ✅ 已完成 |
+| 上传资源 | POST | `/api/projects/<id>/resources` | `services/resources.js` | `routes/resources.py` | ✅ 已完成 |
+| 删除资源 | DELETE | `/api/projects/<id>/resources/<rid>` | `services/resources.js` | `routes/resources.py` | ✅ 已完成 |
+
+---
+
+## 对接统计
+
+| 模块 | API 数量 |
+|------|----------|
+| 认证模块 | 2 |
+| 项目模块 | 4 |
+| 资源模块 | 3 |
+| **总计** | **9** |
 
 ---
 
 ## API 详细说明
 
-### 1. 用户注册
+### 认证模块
+
+#### 1. 用户注册
 
 **请求**
 
@@ -53,7 +73,7 @@ Content-Type: application/json
 
 ---
 
-### 2. 用户登录
+#### 2. 用户登录
 
 **请求**
 
@@ -90,3 +110,186 @@ Content-Type: application/json
 | 401    | 用户名或密码错误                        |
 
 ---
+
+### 项目模块
+
+#### 3. 获取项目列表
+
+**请求**
+
+```http
+GET /api/projects
+Authorization: Bearer <token>
+```
+
+**响应 (200)**
+
+```json
+{
+  "projects": [
+    {
+      "id": 1,
+      "name": "项目名称",
+      "description": "项目描述",
+      "status": "active",
+      "created_at": "2026-01-14T00:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+#### 4. 创建项目
+
+**请求**
+
+```http
+POST /api/projects
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "项目名称",
+  "description": "项目描述（可选）"
+}
+```
+
+**响应 (201)**
+
+```json
+{
+  "message": "项目创建成功",
+  "project": { ... }
+}
+```
+
+---
+
+#### 5. 更新项目
+
+**请求**
+
+```http
+PUT /api/projects/<id>
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "新名称",
+  "description": "新描述"
+}
+```
+
+**响应 (200)**
+
+```json
+{
+  "message": "项目更新成功",
+  "project": { ... }
+}
+```
+
+---
+
+#### 6. 删除项目
+
+**请求**
+
+```http
+DELETE /api/projects/<id>
+Authorization: Bearer <token>
+```
+
+**响应 (200)**
+
+```json
+{
+  "message": "项目删除成功"
+}
+```
+
+---
+
+### 资源模块
+
+#### 7. 获取资源列表
+
+**请求**
+
+```http
+GET /api/projects/<project_id>/resources
+Authorization: Bearer <token>
+```
+
+**响应 (200)**
+
+```json
+{
+  "resources": [
+    {
+      "id": 1,
+      "filename": "文档.docx",
+      "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "file_size": 12345,
+      "parsing_status": "pending",
+      "uploaded_at": "2026-01-14T00:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+#### 8. 上传资源
+
+**请求**
+
+```http
+POST /api/projects/<project_id>/resources
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file: <binary>
+```
+
+**响应 (201)**
+
+```json
+{
+  "message": "文件上传成功",
+  "resource": { ... }
+}
+```
+
+---
+
+#### 9. 删除资源
+
+**请求**
+
+```http
+DELETE /api/projects/<project_id>/resources/<resource_id>
+Authorization: Bearer <token>
+```
+
+**响应 (200)**
+
+```json
+{
+  "message": "资源删除成功"
+}
+```
+
+---
+
+## 前端服务文件说明
+
+| 文件路径 | 功能 |
+|----------|------|
+| `stores/auth.js` | 用户认证（登录、注册、Token管理） |
+| `services/projects.js` | 项目 CRUD 操作 |
+| `services/resources.js` | 资源上传、列表、删除 |
+

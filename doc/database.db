@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS `project_resources` (
                                                    `vector_collection_id` VARCHAR(128) DEFAULT NULL,
                                                    `error_msg` TEXT,
                                                    `uploaded_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                   `is_deleted` TINYINT(1) DEFAULT 0,
+                                                   `deleted_at` TIMESTAMP NULL DEFAULT NULL,
                                                    PRIMARY KEY (`id`),
                                                    KEY `idx_project_id` (`project_id`),
                                                    CONSTRAINT `fk_resources_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE

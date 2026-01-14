@@ -18,6 +18,13 @@ class ProjectResource(db.Model):
     vector_collection_id = db.Column(db.String(128), nullable=True)
     error_msg = db.Column(db.Text, nullable=True)
     uploaded_at = db.Column(db.TIMESTAMP, default=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.TIMESTAMP, nullable=True)
+    
+    def soft_delete(self):
+        """Mark resource as deleted (soft delete)"""
+        self.is_deleted = True
+        self.deleted_at = datetime.utcnow()
     
     def to_dict(self):
         """Convert resource to dictionary"""
@@ -32,5 +39,8 @@ class ProjectResource(db.Model):
             'parsing_status': self.parsing_status,
             'vector_collection_id': self.vector_collection_id,
             'error_msg': self.error_msg,
-            'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None
+            'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None,
+            'is_deleted': self.is_deleted,
+            'deleted_at': self.deleted_at.isoformat() if self.deleted_at else None
         }
+

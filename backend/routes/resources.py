@@ -53,7 +53,7 @@ def list_resources(project_id):
     if not project:
         return jsonify({'error': '项目不存在或无权访问'}), 404
     
-    resources = ProjectResource.query.filter_by(project_id=project_id).order_by(
+    resources = ProjectResource.query.filter_by(project_id=project_id, is_deleted=False).order_by(
         ProjectResource.uploaded_at.desc()
     ).all()
     
@@ -106,13 +106,18 @@ def upload_resource(project_id):
     if not secured_ext and original_ext:
         filename = filename + original_ext if filename else f"file{original_ext}"
     
-    # Add timestamp to avoid conflicts
+    # Add timestamp + random suffix to avoid conflicts (especially for batch uploads)
     import time
+    import random
     name, ext = os.path.splitext(filename)
     # 确保 name 不为空
     if not name:
         name = "file"
-    filename = f"{name}_{int(time.time())}{ext}"
+    # 使用微秒时间戳 + 随机数确保唯一性
+    timestamp = int(time.time() * 1000000)  # 微秒级时间戳
+    random_suffix = random.randint(1000, 9999)
+    filename = f"{name}_{timestamp}_{random_suffix}{ext}"
+
     
     upload_path = get_project_upload_path(project_id)
     file_path = os.path.join(upload_path, filename)
@@ -165,7 +170,7 @@ def get_resource(project_id, resource_id):
     if not project:
         return jsonify({'error': '项目不存在或无权访问'}), 404
     
-    resource = ProjectResource.query.filter_by(id=resource_id, project_id=project_id).first()
+    resource = ProjectResource.query.filter_by(id=resource_id, project_id=project_id, is_deleted=False).first()
     
     if not resource:
         return jsonify({'error': '资源不存在'}), 404
@@ -189,24 +194,19 @@ def delete_resource(project_id, resource_id):
     if not project:
         return jsonify({'error': '项目不存在或无权访问'}), 404
     
-    resource = ProjectResource.query.filter_by(id=resource_id, project_id=project_id).first()
+    resource = ProjectResource.query.filter_by(id=resource_id, project_id=project_id, is_deleted=False).first()
     
     if not resource:
         return jsonify({'error': '资源不存在'}), 404
     
     try:
-        file_path = resource.file_path
-        
-        # Delete database record
-        db.session.delete(resource)
+        # 软删除资源
+        resource.soft_delete()
         db.session.commit()
         
-        # Delete physical file
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        
         return jsonify({
-            'message': '资源删除成功'
+            'message': '资源删除成功',
+            'resource': resource.to_dict()
         }), 200
         
     except Exception as e:
