@@ -89,10 +89,7 @@
 ## 项目结构
 
 ```
-大创/
-├── electron/              # Electron主进程
-│   ├── main.js           # 主进程入口
-│   └── preload.js        # 预加载脚本
+鸿雁杯/
 ├── backend/              # Python后端服务
 │   ├── models/           # 数据模型
 │   ├── routes/           # API路由
@@ -103,24 +100,21 @@
 ├── doc/                  # 项目文档
 │   ├── 数据库表设计文档.md # 包含数据库初始化SQL
 │   └── ...
-├── src/                  # Vue源代码
-│   ├── components/       # Vue组件
-│   │   ├── TopBar.vue
-│   │   ├── EditorToolbar.vue
-│   │   ├── MaterialPanel.vue
-│   │   ├── ChatPanel.vue
-│   │   └── StatusBar.vue
-│   ├── stores/           # Pinia状态管理
-│   │   └── document.js
-│   ├── services/         # 服务层
-│   │   └── websocket.js
-│   ├── App.vue           # 根组件
-│   ├── main.js           # Vue入口
-│   └── style.css         # 全局样式
-├── package.json          # 项目配置
-├── vite.config.js        # Vite配置
-├── tailwind.config.js    # TailwindCSS配置
-└── README.md             # 项目文档
+├── frontend/             # 前端项目 (Electron + Vue)
+│   ├── electron/         # Electron主进程
+│   │   ├── main.js
+│   │   └── preload.js
+│   ├── src/              # Vue源代码
+│   │   ├── components/
+│   │   ├── stores/
+│   │   ├── services/
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── package.json      # 前端项目配置
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── index.html
+└── README.md             # 项目总文档
 ```
 
 ## 开发指南
