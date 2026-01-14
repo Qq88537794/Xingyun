@@ -5,13 +5,20 @@
     @auth-success="handleAuthSuccess"
   />
   
-  <!-- 主应用 -->
-  <div v-else class="app-container h-screen flex flex-col bg-gray-50">
-    <!-- 顶部工具栏 -->
+  <!-- 项目列表页面 -->
+  <ProjectsView
+    v-else-if="currentView === 'projects'"
+    @select-project="handleSelectProject"
+  />
+  
+  <!-- 编辑器页面 -->
+  
+  <div v-else-if="currentView === 'editor'" class="app-container h-screen flex flex-col bg-gray-50">
     <TopBar 
       :show-material-panel="showMaterialPanel"
       :show-chat-panel="showChatPanel"
       :editor-json="editorJson"
+      :project-name="currentProject?.name"
       @new-document="handleNewDocument" 
       @save-document="handleSaveDocument"
       @open-document="handleOpenDocument"
@@ -19,6 +26,7 @@
       @toggle-chat-panel="showChatPanel = !showChatPanel"
       @show-snapshots="showSnapshotModal = true"
       @show-settings="showSettingsModal = true"
+      @back-to-projects="handleBackToProjects"
     />
     
     <!-- 主内容区 -->
@@ -116,6 +124,7 @@ import TableHeader from '@tiptap/extension-table-header'
 import Underline from '@tiptap/extension-underline'
 
 import AuthView from './views/AuthView.vue'
+import ProjectsView from './views/ProjectsView.vue'
 import TopBar from './components/TopBar.vue'
 import MaterialPanel from './components/MaterialPanel.vue'
 import EditorToolbar from './components/EditorToolbar.vue'
@@ -129,6 +138,7 @@ import { useDocumentStore } from './stores/document'
 import { useAuthStore } from './stores/auth'
 import { useWebSocketService } from './services/websocket'
 import { useToast } from './composables/useToast'
+import { getResources, uploadResourceFromPath, deleteResource } from './services/resources'
 
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
@@ -141,6 +151,9 @@ const showChatPanel = ref(true)
 const showSnapshotModal = ref(false)
 const showSettingsModal = ref(false)
 const materials = ref([])
+const currentProjectId = ref(null)
+const currentProject = ref(null)
+const currentView = ref('projects') // 'projects' | 'editor'
 const chatMessages = ref([])
 const connectionStatus = ref('disconnected')
 const lastSaved = ref(null)
@@ -344,24 +357,53 @@ const handleUploadMaterial = async () => {
   }
   
   const filePaths = await window.electronAPI.openFile()
-  if (filePaths) {
+  if (filePaths && filePaths.length > 0) {
     for (const filePath of filePaths) {
-      materials.value.push({
-        id: Date.now() + Math.random(),
-        name: filePath.split(/[\\/]/).pop(),
-        path: filePath,
-        type: filePath.split('.').pop().toLowerCase(),
-        uploadTime: new Date().toISOString(),
-        status: 'pending'
-      })
+      try {
+        // 读取文件内容
+        const fileContent = await window.electronAPI.readFileAsBuffer(filePath)
+        const fileName = filePath.split(/[\\/]/).pop()
+        
+        // 上传到后端
+        const result = await uploadResourceFromPath(
+          currentProjectId.value,
+          filePath,
+          fileContent,
+          fileName
+        )
+        
+        if (result.resource) {
+          materials.value.push(result.resource)
+          toast.success(`已上传: ${fileName}`)
+        }
+      } catch (err) {
+        console.error('上传失败:', err)
+        toast.error(`上传失败: ${err.response?.data?.error || err.message}`)
+      }
     }
-    toast.success(`已添加 ${filePaths.length} 个材料`)
   }
 }
 
-const handleRemoveMaterial = (id) => {
-  materials.value = materials.value.filter(m => m.id !== id)
-  toast.info('材料已移除')
+const handleRemoveMaterial = async (id) => {
+  try {
+    await deleteResource(currentProjectId.value, id)
+    materials.value = materials.value.filter(m => m.id !== id)
+    toast.success('素材已删除')
+  } catch (err) {
+    console.error('删除失败:', err)
+    toast.error(`删除失败: ${err.response?.data?.error || err.message}`)
+  }
+}
+
+// 从后端获取素材列表
+const fetchMaterials = async () => {
+  try {
+    const resourceList = await getResources(currentProjectId.value)
+    materials.value = resourceList
+  } catch (err) {
+    console.error('获取素材列表失败:', err)
+    // 静默失败，不显示错误提示
+  }
 }
 
 // AI对话
@@ -406,11 +448,25 @@ const handleInsertToDoc = (content) => {
 }
 
 // 认证成功处理
-const handleAuthSuccess = () => {
+const handleAuthSuccess = async () => {
+  // 登录成功后显示项目列表
+  currentView.value = 'projects'
+}
+
+// 选择项目
+const handleSelectProject = async (project) => {
+  currentProject.value = project
+  currentProjectId.value = project.id
+  currentView.value = 'editor'
+  
+  // 连接 WebSocket
   wsService.connect('ws://localhost:8000/ws')
   
+  // 获取项目素材
+  await fetchMaterials()
+  
   // 恢复保存的内容
-  const savedContent = localStorage.getItem('doc_content')
+  const savedContent = localStorage.getItem(`doc_content_${project.id}`)
   if (savedContent) {
     try {
       const json = JSON.parse(savedContent)
@@ -418,41 +474,46 @@ const handleAuthSuccess = () => {
     } catch (e) {
       console.warn('恢复文档失败')
     }
+  } else {
+    editor.value?.commands.setContent('<p>开始编写您的文档...</p>')
   }
   
   // 恢复快照
-  const savedSnapshots = localStorage.getItem('doc_snapshots')
+  const savedSnapshots = localStorage.getItem(`doc_snapshots_${project.id}`)
   if (savedSnapshots) {
     try {
       snapshots.value = JSON.parse(savedSnapshots)
     } catch (e) {
       console.warn('恢复快照失败')
     }
+  } else {
+    snapshots.value = []
   }
+}
+
+// 返回项目列表
+const handleBackToProjects = () => {
+  // 保存当前文档
+  if (currentProjectId.value && editor.value) {
+    const json = editor.value.getJSON()
+    localStorage.setItem(`doc_content_${currentProjectId.value}`, JSON.stringify(json))
+    localStorage.setItem(`doc_snapshots_${currentProjectId.value}`, JSON.stringify(snapshots.value))
+  }
+  
+  currentView.value = 'projects'
+  currentProject.value = null
+  currentProjectId.value = null
+  materials.value = []
+  chatMessages.value = []
 }
 
 // WebSocket连接
 onMounted(() => {
   authStore.restoreUser()
   
+  // 如果已登录，显示项目列表
   if (authStore.isAuthenticated) {
-    wsService.connect('ws://localhost:8000/ws')
-    
-    // 恢复保存的内容
-    const savedContent = localStorage.getItem('doc_content')
-    if (savedContent) {
-      try {
-        editor.value?.commands.setContent(JSON.parse(savedContent))
-      } catch (e) {}
-    }
-    
-    // 恢复快照
-    const savedSnapshots = localStorage.getItem('doc_snapshots')
-    if (savedSnapshots) {
-      try {
-        snapshots.value = JSON.parse(savedSnapshots)
-      } catch (e) {}
-    }
+    currentView.value = 'projects'
   }
   
   wsService.on('message', (data) => {

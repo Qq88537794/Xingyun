@@ -1,7 +1,19 @@
 <template>
   <div class="top-bar bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
     <div class="flex items-center space-x-4">
-      <h1 class="text-xl font-bold text-gray-800">行云文档</h1>
+      <!-- 返回项目列表 -->
+      <button 
+        @click="$emit('back-to-projects')"
+        class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        title="返回项目列表"
+      >
+        <ArrowLeft :size="18" />
+      </button>
+      
+      <div class="flex items-center space-x-2">
+        <h1 class="text-xl font-bold text-gray-800">行云文档</h1>
+        <span v-if="projectName" class="text-sm text-gray-500">/ {{ projectName }}</span>
+      </div>
       <div class="flex space-x-2">
         <button @click="$emit('new-document')" class="btn-primary">
           <FilePlus :size="16" />
@@ -97,7 +109,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight } from 'lucide-vue-next'
+import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft } from 'lucide-vue-next'
 import UserMenu from './UserMenu.vue'
 import { ExportService } from '../services/export'
 import { useToast } from '../composables/useToast'
@@ -114,6 +126,10 @@ const props = defineProps({
   editorJson: {
     type: Object,
     default: null
+  },
+  projectName: {
+    type: String,
+    default: ''
   }
 })
 
@@ -124,7 +140,8 @@ const emit = defineEmits([
   'toggle-material-panel',
   'toggle-chat-panel',
   'show-snapshots',
-  'show-settings'
+  'show-settings',
+  'back-to-projects'
 ])
 
 const toast = useToast()

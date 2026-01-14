@@ -5,14 +5,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 文件对话框
   openFile: () => ipcRenderer.invoke('dialog:openFile'),
   saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
-  
+
   // 文件操作
   readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
+  readFileAsBuffer: (filePath) => ipcRenderer.invoke('file:readBuffer', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
-  
+
   // 应用路径
   getAppPath: (name) => ipcRenderer.invoke('app:getPath', name),
-  
+
   // 平台信息
   platform: process.platform
 })

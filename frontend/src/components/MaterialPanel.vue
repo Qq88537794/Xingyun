@@ -37,28 +37,28 @@
           @click="handlePreview(material)"
         >
           <div class="flex items-start justify-between">
-            <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0">
               <div class="flex items-center space-x-2">
                 <component 
-                  :is="getFileIcon(material.type)" 
+                  :is="getFileIcon(getMaterialType(material))" 
                   :size="16" 
-                  :class="getFileIconClass(material.type)" 
+                  :class="getFileIconClass(getMaterialType(material))" 
                   class="flex-shrink-0" 
                 />
                 <p class="text-sm font-medium text-gray-800 truncate">
-                  {{ material.name }}
+                  {{ getMaterialName(material) }}
                 </p>
               </div>
               <div class="flex items-center space-x-2 mt-1">
                 <span class="text-xs text-gray-500">
-                  {{ formatFileType(material.type) }}
+                  {{ formatFileType(getMaterialType(material)) }}
                 </span>
                 <!-- 处理状态 -->
-                <span :class="getStatusClass(material.status)" class="text-xs flex items-center">
-                  <Loader2 v-if="material.status === 'processing'" :size="10" class="animate-spin mr-1" />
-                  <CheckCircle v-else-if="material.status === 'ready'" :size="10" class="mr-1" />
-                  <Clock v-else-if="material.status === 'pending'" :size="10" class="mr-1" />
-                  {{ getStatusText(material.status) }}
+                <span :class="getStatusClass(getMaterialStatus(material))" class="text-xs flex items-center">
+                  <Loader2 v-if="getMaterialStatus(material) === 'processing'" :size="10" class="animate-spin mr-1" />
+                  <CheckCircle v-else-if="getMaterialStatus(material) === 'ready' || getMaterialStatus(material) === 'indexed'" :size="10" class="mr-1" />
+                  <Clock v-else-if="getMaterialStatus(material) === 'pending'" :size="10" class="mr-1" />
+                  {{ getStatusText(getMaterialStatus(material)) }}
                 </span>
               </div>
             </div>
@@ -166,10 +166,29 @@ const getStatusText = (status) => {
   const texts = {
     pending: '待处理',
     processing: '解析中',
+    parsing: '解析中',
     ready: '已就绪',
+    indexed: '已索引',
     error: '解析失败'
   }
   return texts[status] || ''
+}
+
+// 字段兼容辅助函数（支持后端返回格式和本地格式）
+const getMaterialName = (material) => {
+  return material.name || material.filename || 'Unknown'
+}
+
+const getMaterialType = (material) => {
+  if (material.type) return material.type
+  // 从 filename 或 mime_type 提取类型
+  const filename = material.filename || ''
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ext || 'file'
+}
+
+const getMaterialStatus = (material) => {
+  return material.status || material.parsing_status || 'pending'
 }
 
 const handlePreview = (material) => {

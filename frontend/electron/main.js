@@ -22,7 +22,7 @@ function createWindow() {
 
   // 开发环境加载Vite服务器，生产环境加载打包后的文件
   const isDev = !app.isPackaged
-  
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
     // mainWindow.webContents.openDevTools() // 已禁用自动打开开发者工具
@@ -58,7 +58,7 @@ ipcMain.handle('dialog:openFile', async () => {
       { name: 'All Files', extensions: ['*'] }
     ]
   })
-  
+
   if (!result.canceled && result.filePaths.length > 0) {
     return result.filePaths
   }
@@ -75,7 +75,7 @@ ipcMain.handle('dialog:saveFile', async (event, options) => {
       { name: 'LaTeX', extensions: ['tex'] }
     ]
   })
-  
+
   if (!result.canceled) {
     return result.filePath
   }
@@ -88,6 +88,15 @@ ipcMain.handle('file:read', async (event, filePath) => {
     return { success: true, data }
   } catch (error) {
     return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('file:readBuffer', async (event, filePath) => {
+  try {
+    const buffer = fs.readFileSync(filePath)
+    return buffer
+  } catch (error) {
+    throw new Error(error.message)
   }
 })
 
