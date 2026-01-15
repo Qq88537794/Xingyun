@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from models import db
@@ -96,6 +97,10 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({'error': '用户名或密码错误'}), 401
     
+    # Update last login time
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+    
     # Generate access token
     access_token = create_access_token(identity=str(user.id))
     
@@ -104,21 +109,3 @@ def login():
         'user': user.to_dict(),
         'access_token': access_token
     }), 200
-
-
-@auth_bp.route('/me', methods=['GET'])
-@jwt_required()
-def get_current_user():
-    """
-    Get current authenticated user info
-    
-    Headers:
-        Authorization: Bearer <access_token>
-    """
-    user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
-    
-    if not user:
-        return jsonify({'error': '用户不存在'}), 404
-    
-    return jsonify({'user': user.to_dict()}), 200

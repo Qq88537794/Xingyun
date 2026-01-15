@@ -25,17 +25,6 @@
           <!-- 基本信息 -->
           <div class="flex-1">
             <form @submit.prevent="handleSave" class="space-y-4">
-              <!-- 姓名 -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">姓名</label>
-                <input
-                  v-model="formData.fullName"
-                  type="text"
-                  required
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              </div>
-              
               <!-- 用户名 -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">用户名</label>
@@ -64,7 +53,7 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">个人简介</label>
                 <textarea
-                  v-model="formData.bio"
+                  v-model="formData.description"
                   rows="3"
                   placeholder="介绍一下自己..."
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
@@ -120,8 +109,8 @@
         <div class="border-t border-gray-200 pt-6 mt-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">账户信息</h3>
           <div class="space-y-2 text-sm text-gray-600">
-            <p>注册时间: {{ formatDate(authStore.user?.createdAt) }}</p>
-            <p>最后登录: {{ formatDate(authStore.user?.lastLogin) }}</p>
+            <p>注册时间: {{ formatDate(authStore.user?.created_at) }}</p>
+            <p>最后登录: {{ formatDate(authStore.user?.last_login) }}</p>
           </div>
         </div>
       </div>
@@ -146,39 +135,40 @@ defineEmits(['close'])
 const authStore = useAuthStore()
 
 const formData = ref({
-  fullName: '',
   username: '',
   email: '',
-  bio: ''
+  description: ''
 })
 
 const saveSuccess = ref(false)
 const showPasswordModal = ref(false)
+const isLoading = ref(true)
 
 const userInitials = computed(() => {
-  const name = formData.value.fullName || 'U'
+  const name = formData.value.username || 'U'
   return name.charAt(0).toUpperCase()
 })
 
-onMounted(() => {
-  // 初始化表单数据
+onMounted(async () => {
+  // 从 API 获取最新用户信息
+  await authStore.fetchUser()
+  
   if (authStore.user) {
     formData.value = {
-      fullName: authStore.user.fullName || '',
       username: authStore.user.username || '',
       email: authStore.user.email || '',
-      bio: authStore.user.bio || ''
+      description: authStore.user.description || ''
     }
   }
+  isLoading.value = false
 })
 
 const handleSave = async () => {
   saveSuccess.value = false
   
   const result = await authStore.updateProfile({
-    fullName: formData.value.fullName,
     username: formData.value.username,
-    bio: formData.value.bio
+    description: formData.value.description
   })
   
   if (result.success) {

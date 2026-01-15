@@ -13,7 +13,9 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     avatar = db.Column(db.String(512), nullable=True)
+    description = db.Column(db.Text, nullable=True)
     settings = db.Column(db.JSON, nullable=True)
+    last_login = db.Column(db.TIMESTAMP, nullable=True)
     created_at = db.Column(db.TIMESTAMP, default=datetime.utcnow)
     
     # Relationship
@@ -34,6 +36,8 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'avatar': self.avatar,
+            'description': self.description,
             'settings': self.settings,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

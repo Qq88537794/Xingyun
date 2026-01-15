@@ -43,10 +43,9 @@ export const useAuthStore = defineStore('auth', () => {
           id: Date.now(),
           username: userData.username,
           email: userData.email,
-          fullName: userData.username, // 使用用户名作为显示名称
-          bio: '',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          description: '',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString()
         }
 
         token.value = mockToken
@@ -103,10 +102,9 @@ export const useAuthStore = defineStore('auth', () => {
           id: Date.now(),
           username: credentials.email.split('@')[0],
           email: credentials.email,
-          fullName: credentials.email.split('@')[0], // 使用邮箱前缀作为显示名称
-          bio: '',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          description: '',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString()
         }
 
         token.value = mockToken
@@ -171,6 +169,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 获取当前用户信息
+  const fetchUser = async () => {
+    if (!token.value) return { success: false }
+
+    setupAxios()
+
+    try {
+      if (DEV_MODE) {
+        return { success: true }
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/user/me`)
+      user.value = response.data.user
+      localStorage.setItem('user', JSON.stringify(user.value))
+      return { success: true }
+    } catch (err) {
+      console.error('获取用户信息失败:', err)
+      return { success: false }
+    }
+  }
+
   // 更新用户信息
   const updateProfile = async (profileData) => {
     loading.value = true
@@ -191,7 +210,7 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: true }
       }
 
-      const response = await axios.put(`${API_BASE_URL}/auth/profile`, profileData)
+      const response = await axios.put(`${API_BASE_URL}/user/profile`, profileData)
 
       user.value = response.data.user
       localStorage.setItem('user', JSON.stringify(user.value))
@@ -219,7 +238,7 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: true }
       }
 
-      await axios.post(`${API_BASE_URL}/auth/change-password`, {
+      await axios.post(`${API_BASE_URL}/user/change-password`, {
         oldPassword: passwordData.oldPassword,
         newPassword: passwordData.newPassword
       })
@@ -243,6 +262,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     restoreUser,
+    fetchUser,
     updateProfile,
     changePassword
   }

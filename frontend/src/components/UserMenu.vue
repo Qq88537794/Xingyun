@@ -9,7 +9,7 @@
         {{ userInitials }}
       </div>
       <div class="text-left hidden md:block">
-        <p class="text-sm font-medium text-gray-900">{{ authStore.user?.fullName }}</p>
+        <p class="text-sm font-medium text-gray-900">{{ authStore.user?.username }}</p>
         <p class="text-xs text-gray-500">{{ authStore.user?.email }}</p>
       </div>
       <ChevronDown :size="16" class="text-gray-500" />
@@ -31,7 +31,7 @@
       >
         <!-- 用户信息 -->
         <div class="px-4 py-3 border-b border-gray-200">
-          <p class="text-sm font-medium text-gray-900">{{ authStore.user?.fullName }}</p>
+          <p class="text-sm font-medium text-gray-900">{{ authStore.user?.username }}</p>
           <p class="text-xs text-gray-500 truncate">{{ authStore.user?.email }}</p>
         </div>
         
@@ -94,7 +94,7 @@ const menuContainer = ref(null)
 
 // 用户名首字母
 const userInitials = computed(() => {
-  const name = authStore.user?.fullName || authStore.user?.username || 'U'
+  const name = authStore.user?.username || 'U'
   return name.charAt(0).toUpperCase()
 })
 
