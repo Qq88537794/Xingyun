@@ -171,6 +171,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 手动设置用户信息和token（用于外部登录/注册）
+  const setUser = (userData, authToken) => {
+    user.value = userData
+    token.value = authToken
+    
+    localStorage.setItem('token', authToken)
+    localStorage.setItem('user', JSON.stringify(userData))
+    
+    setupAxios()
+  }
+
   // 更新用户信息
   const updateProfile = async (profileData) => {
     loading.value = true
@@ -243,6 +254,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     restoreUser,
+    setUser,
     updateProfile,
     changePassword
   }

@@ -1,18 +1,11 @@
 <template>
-  <!-- 认证页面 -->
-  <AuthView 
-    v-if="!authStore.isAuthenticated"
-    @auth-success="handleAuthSuccess"
-  />
-  
-  <!-- 项目列表页面 -->
+  <!-- 项目列表页面（包含登录注册） -->
   <ProjectsView
-    v-else-if="currentView === 'projects'"
+    v-if="currentView === 'projects'"
     @select-project="handleSelectProject"
   />
   
   <!-- 编辑器页面 -->
-  
   <div v-else-if="currentView === 'editor'" class="app-container h-screen flex flex-col bg-gray-50">
     <TopBar 
       :show-material-panel="showMaterialPanel"
@@ -106,10 +99,10 @@
       @close="showSettingsModal = false"
       @save="handleSettingsChange"
     />
-    
-    <!-- Toast 通知 -->
-    <ToastContainer />
   </div>
+  
+  <!-- Toast 通知 - 全局显示 -->
+  <ToastContainer />
 </template>
 
 <script setup>
@@ -123,7 +116,6 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import Underline from '@tiptap/extension-underline'
 
-import AuthView from './views/AuthView.vue'
 import ProjectsView from './views/ProjectsView.vue'
 import TopBar from './components/TopBar.vue'
 import MaterialPanel from './components/MaterialPanel.vue'
@@ -171,7 +163,11 @@ const userSettings = ref({
 const editor = useEditor({
   extensions: [
     StarterKit.configure({
-      heading: { levels: [1, 2, 3, 4] }
+      heading: { levels: [1, 2, 3, 4] },
+      history: {
+        depth: 100,
+        newGroupDelay: 50
+      }
     }),
     Underline,
     Image,
@@ -447,11 +443,7 @@ const handleInsertToDoc = (content) => {
   }
 }
 
-// 认证成功处理
-const handleAuthSuccess = async () => {
-  // 登录成功后显示项目列表
-  currentView.value = 'projects'
-}
+// 认证成功处理（已移除，现在在 ProjectsView 中处理）
 
 // 选择项目
 const handleSelectProject = async (project) => {
@@ -511,10 +503,8 @@ const handleBackToProjects = () => {
 onMounted(() => {
   authStore.restoreUser()
   
-  // 如果已登录，显示项目列表
-  if (authStore.isAuthenticated) {
-    currentView.value = 'projects'
-  }
+  // 总是显示项目列表（包含登录注册）
+  currentView.value = 'projects'
   
   wsService.on('message', (data) => {
     if (data.type === 'chat_response') {

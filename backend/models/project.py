@@ -9,6 +9,7 @@ class Project(db.Model):
     
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    folder_id = db.Column(db.BigInteger, db.ForeignKey('folders.id', ondelete='SET NULL'), nullable=True)
     name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(32), default='active')
@@ -24,6 +25,7 @@ class Project(db.Model):
         data = {
             'id': self.id,
             'user_id': self.user_id,
+            'folder_id': self.folder_id,
             'name': self.name,
             'description': self.description,
             'status': self.status,

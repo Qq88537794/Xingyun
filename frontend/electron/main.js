@@ -25,7 +25,7 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
-    // mainWindow.webContents.openDevTools() // 已禁用自动打开开发者工具
+    // mainWindow.webContents.openDevTools() // 开发模式下自动打开开发者工具（已禁用）
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
