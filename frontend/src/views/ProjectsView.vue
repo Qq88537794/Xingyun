@@ -214,8 +214,14 @@
           @click="openUserProfileModal"
           class="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-            <span class="text-white font-medium text-lg">
+          <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+            <img 
+              v-if="authStore.user?.avatar" 
+              :src="`http://localhost:5000${authStore.user.avatar}`" 
+              :alt="authStore.user?.username"
+              class="w-full h-full object-cover"
+            />
+            <span v-else class="text-white font-medium text-lg">
               {{ authStore.user?.username?.charAt(0).toUpperCase() }}
             </span>
           </div>
@@ -581,8 +587,14 @@
           <!-- 用户头像 -->
           <div class="flex flex-col items-center">
             <div class="relative group">
-              <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer group-hover:opacity-80 transition-opacity">
-                <span class="text-white font-bold text-4xl">
+              <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer group-hover:opacity-80 transition-opacity overflow-hidden">
+                <img 
+                  v-if="authStore.user?.avatar" 
+                  :src="`http://localhost:5000${authStore.user.avatar}`" 
+                  :alt="authStore.user?.username"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else class="text-white font-bold text-4xl">
                   {{ authStore.user?.username?.charAt(0).toUpperCase() }}
                 </span>
               </div>
@@ -638,7 +650,7 @@
                   <label class="text-sm font-medium text-gray-700">修改密码</label>
                   <button
                     type="button"
-                    @click="showPasswordFields = !showPasswordFields"
+                    @click="togglePasswordFields"
                     class="text-sm text-blue-600 hover:text-blue-700"
                   >
                     {{ showPasswordFields ? '取消修改' : '修改密码' }}
@@ -646,32 +658,55 @@
                 </div>
 
                 <div v-if="showPasswordFields" class="space-y-3">
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">当前密码</label>
-                    <input
-                      v-model="profileForm.currentPassword"
-                      type="password"
-                      placeholder="请输入当前密码"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                    />
+                  <!-- 步骤1: 验证当前密码 -->
+                  <div v-if="passwordStep === 1">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                      <p class="text-xs text-blue-700">步骤 1/2: 请先输入当前密码进行验证</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">当前密码</label>
+                      <input
+                        v-model="profileForm.currentPassword"
+                        type="password"
+                        placeholder="请输入当前密码"
+                        @keyup.enter="verifyCurrentPassword"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      @click="verifyCurrentPassword"
+                      :disabled="!profileForm.currentPassword || verifyingPassword"
+                      class="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      <Loader2 v-if="verifyingPassword" :size="16" class="animate-spin mr-2" />
+                      {{ verifyingPassword ? '验证中...' : '验证密码' }}
+                    </button>
                   </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">新密码</label>
-                    <input
-                      v-model="profileForm.newPassword"
-                      type="password"
-                      placeholder="请输入新密码"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">确认新密码</label>
-                    <input
-                      v-model="profileForm.confirmPassword"
-                      type="password"
-                      placeholder="请再次输入新密码"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                    />
+
+                  <!-- 步骤2: 输入新密码 -->
+                  <div v-if="passwordStep === 2">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                      <p class="text-xs text-green-700">✓ 当前密码验证成功！步骤 2/2: 请设置新密码</p>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">新密码</label>
+                      <input
+                        v-model="profileForm.newPassword"
+                        type="password"
+                        placeholder="请输入新密码（至少6个字符）"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">确认新密码</label>
+                      <input
+                        v-model="profileForm.confirmPassword"
+                        type="password"
+                        placeholder="请再次输入新密码"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -746,6 +781,19 @@ const emit = defineEmits(['select-project'])
 
 const authStore = useAuthStore()
 const toast = useToast()
+
+// 个人资料编辑状态（需要在 watch 之前声明）
+const isEditingProfile = ref(false)
+const showPasswordFields = ref(false)
+const passwordStep = ref(1) // 1: 输入当前密码, 2: 输入新密码
+const verifyingPassword = ref(false) // 验证当前密码的加载状态
+const profileForm = ref({
+  username: '',
+  email: '',
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
 
 // 监听认证状态变化
 watch(() => authStore.isAuthenticated, (newVal) => {
@@ -836,17 +884,6 @@ const formData = ref({
 const folderFormData = ref({
   name: '',
   color: 'blue'
-})
-
-// 个人资料编辑状态
-const isEditingProfile = ref(false)
-const showPasswordFields = ref(false)
-const profileForm = ref({
-  username: '',
-  email: '',
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
 })
 
 // 计算当前显示的项目
@@ -1441,15 +1478,69 @@ const startEditingProfile = () => {
   }
   isEditingProfile.value = true
   showPasswordFields.value = false
+  passwordStep.value = 1
+}
+
+// 切换密码修改区域
+const togglePasswordFields = () => {
+  showPasswordFields.value = !showPasswordFields.value
+  if (showPasswordFields.value) {
+    passwordStep.value = 1
+    profileForm.value.currentPassword = ''
+    profileForm.value.newPassword = ''
+    profileForm.value.confirmPassword = ''
+  }
+}
+
+// 验证当前密码
+const verifyCurrentPassword = async () => {
+  if (!profileForm.value.currentPassword) {
+    toast.warning('请输入当前密码')
+    return
+  }
+
+  verifyingPassword.value = true
+  try {
+    // 调用后端API验证密码
+    const response = await fetch('http://localhost:5000/api/auth/verify-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({
+        password: profileForm.value.currentPassword
+      })
+    })
+
+    const data = await response.json()
+
+    if (response.ok && data.valid) {
+      // 密码验证成功，进入下一步
+      passwordStep.value = 2
+      toast.success('密码验证成功，请设置新密码')
+    } else {
+      // 密码验证失败
+      showError('当前密码不正确\n\n请确认：\n• 输入的密码是否正确\n• 密码区分大小写', '密码错误')
+      profileForm.value.currentPassword = ''
+    }
+  } catch (err) {
+    console.error('验证密码失败:', err)
+    showError('验证密码时发生错误\n\n请检查网络连接后重试', '验证失败')
+  } finally {
+    verifyingPassword.value = false
+  }
 }
 
 // 取消编辑个人资料
 const cancelEditingProfile = () => {
   isEditingProfile.value = false
   showPasswordFields.value = false
+  passwordStep.value = 1
+  // 恢复为原始用户数据，而不是清空
   profileForm.value = {
-    username: '',
-    email: '',
+    username: authStore.user?.username || '',
+    email: authStore.user?.email || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -1491,8 +1582,9 @@ const handleUpdateProfile = async () => {
   
   // 如果要修改密码，验证密码字段
   if (showPasswordFields.value) {
-    if (!profileForm.value.currentPassword) {
-      toast.warning('请输入当前密码')
+    // 如果还在步骤1，提示用户先验证当前密码
+    if (passwordStep.value === 1) {
+      toast.warning('请先验证当前密码')
       return
     }
     
@@ -1525,7 +1617,7 @@ const handleUpdateProfile = async () => {
     }
     
     // 如果要修改密码，添加密码字段
-    if (showPasswordFields.value) {
+    if (showPasswordFields.value && passwordStep.value === 2) {
       updateData.current_password = profileForm.value.currentPassword
       updateData.new_password = profileForm.value.newPassword
     }
@@ -1556,8 +1648,8 @@ const handleUpdateProfile = async () => {
           showError(errorMsg || '请求参数错误，请检查输入信息', '更新失败')
           break
         case 401:
-          // 当前密码错误
-          showError('当前密码不正确\n\n请确认：\n• 输入的密码是否正确\n• 密码区分大小写', '密码错误')
+          // 这里不应该再出现密码错误，因为已经在步骤1验证过了
+          showError('认证失败，请重新登录', '认证错误')
           break
         case 409:
           // 冲突错误，用户名或邮箱已被使用
@@ -1587,8 +1679,67 @@ const handleUpdateProfile = async () => {
 
 // 更换头像
 const handleChangeAvatar = () => {
-  toast.info('头像功能开发中，敬请期待')
-  // TODO: 实现头像上传功能
+  // 创建一个隐藏的文件选择器
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/jpeg,image/png,image/jpg,image/gif,image/webp'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // 验证文件大小（限制为5MB）
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.warning('图片大小不能超过5MB')
+      return
+    }
+    
+    // 验证文件类型
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      toast.warning('只支持 JPG、PNG、GIF、WebP 格式的图片')
+      return
+    }
+    
+    // 上传头像
+    await uploadAvatar(file)
+  }
+  
+  input.click()
+}
+
+// 上传头像
+const uploadAvatar = async (file) => {
+  const formData = new FormData()
+  formData.append('avatar', file)
+  
+  submitting.value = true
+  try {
+    const response = await fetch('http://localhost:5000/api/auth/avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: formData
+    })
+    
+    const data = await response.json()
+    
+    if (response.ok) {
+      // 更新本地用户信息
+      authStore.user = data.user
+      localStorage.setItem('user', JSON.stringify(data.user))
+      toast.success('头像更新成功')
+    } else {
+      showError(data.error || '头像上传失败', '上传失败')
+    }
+  } catch (err) {
+    console.error('上传头像失败:', err)
+    showError('上传头像时发生错误\n\n请检查网络连接后重试', '上传失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 格式化日期

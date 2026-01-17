@@ -84,7 +84,7 @@
                 </button>
                 <button
                   type="button"
-                  @click="$emit('close')"
+                  @click="handleCancel"
                   class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                 >
                   取消
@@ -130,7 +130,7 @@ import { X, AlertCircle, CheckCircle, Loader2 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import ChangePasswordModal from './ChangePasswordModal.vue'
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 const authStore = useAuthStore()
 
@@ -145,14 +145,12 @@ const showPasswordModal = ref(false)
 const isLoading = ref(true)
 
 const userInitials = computed(() => {
-  const name = formData.value.username || 'U'
+  const name = formData.value.fullName || authStore.user?.fullName || 'U'
   return name.charAt(0).toUpperCase()
 })
 
-onMounted(async () => {
-  // 从 API 获取最新用户信息
-  await authStore.fetchUser()
-  
+// 初始化表单数据
+const initFormData = () => {
   if (authStore.user) {
     formData.value = {
       username: authStore.user.username || '',
@@ -160,8 +158,19 @@ onMounted(async () => {
       description: authStore.user.description || ''
     }
   }
-  isLoading.value = false
+}
+
+onMounted(() => {
+  initFormData()
 })
+
+// 处理取消操作
+const handleCancel = () => {
+  // 重置表单数据为原始用户数据
+  initFormData()
+  // 关闭模态框
+  emit('close')
+}
 
 const handleSave = async () => {
   saveSuccess.value = false

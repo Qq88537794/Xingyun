@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const API_BASE_URL = 'http://localhost:5000/api'
+import api from './api'
 
 /**
  * 项目管理 API 服务
@@ -11,13 +9,8 @@ const API_BASE_URL = 'http://localhost:5000/api'
  * @returns {Promise<Array>} 项目列表
  */
 export const getProjects = async () => {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_BASE_URL}/projects`, {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    })
-    return response.data.projects || []
+  const response = await api.get('/projects')
+  return response.data.projects || []
 }
 
 /**
@@ -27,16 +20,10 @@ export const getProjects = async () => {
  * @returns {Promise<Object>} 项目详情
  */
 export const getProject = async (projectId, includeResources = false) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-        `${API_BASE_URL}/projects/${projectId}?include_resources=${includeResources}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }
-    )
-    return response.data.project
+  const response = await api.get(
+    `/projects/${projectId}?include_resources=${includeResources}`
+  )
+  return response.data.project
 }
 
 /**
@@ -46,18 +33,8 @@ export const getProject = async (projectId, includeResources = false) => {
  * @returns {Promise<Object>} 创建结果
  */
 export const createProject = async (name, description = '') => {
-    const token = localStorage.getItem('token')
-    const response = await axios.post(
-        `${API_BASE_URL}/projects`,
-        { name, description },
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        }
-    )
-    return response.data
+  const response = await api.post('/projects', { name, description })
+  return response.data
 }
 
 /**
@@ -67,18 +44,8 @@ export const createProject = async (name, description = '') => {
  * @returns {Promise<Object>} 更新结果
  */
 export const updateProject = async (projectId, data) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.put(
-        `${API_BASE_URL}/projects/${projectId}`,
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        }
-    )
-    return response.data
+  const response = await api.put(`/projects/${projectId}`, data)
+  return response.data
 }
 
 /**
@@ -87,14 +54,6 @@ export const updateProject = async (projectId, data) => {
  * @returns {Promise<Object>} 删除结果
  */
 export const deleteProject = async (projectId) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.delete(
-        `${API_BASE_URL}/projects/${projectId}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }
-    )
-    return response.data
+  const response = await api.delete(`/projects/${projectId}`)
+  return response.data
 }

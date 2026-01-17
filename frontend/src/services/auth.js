@@ -1,3 +1,4 @@
+import api from './api'
 import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:5000/api'
@@ -13,16 +14,17 @@ const API_BASE_URL = 'http://localhost:5000/api'
  * @returns {Promise<Object>} 登录结果 { user, token }
  */
 export const login = async (username, password) => {
-    const response = await axios.post(
-        `${API_BASE_URL}/auth/login`,
-        { username, password },
-        {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }
-    )
-    return response.data
+  // 登录不需要 token，使用原始 axios
+  const response = await axios.post(
+    `${API_BASE_URL}/auth/login`,
+    { username, password },
+    {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+  return response.data
 }
 
 /**
@@ -33,16 +35,17 @@ export const login = async (username, password) => {
  * @returns {Promise<Object>} 注册结果 { user, token }
  */
 export const register = async (username, email, password) => {
-    const response = await axios.post(
-        `${API_BASE_URL}/auth/register`,
-        { username, email, password },
-        {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }
-    )
-    return response.data
+  // 注册不需要 token，使用原始 axios
+  const response = await axios.post(
+    `${API_BASE_URL}/auth/register`,
+    { username, email, password },
+    {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+  return response.data
 }
 
 /**
@@ -50,13 +53,8 @@ export const register = async (username, email, password) => {
  * @returns {Promise<Object>} 用户信息
  */
 export const getCurrentUser = async () => {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_BASE_URL}/auth/me`, {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    })
-    return response.data.user
+  const response = await api.get('/auth/me')
+  return response.data.user
 }
 
 /**
@@ -65,16 +63,6 @@ export const getCurrentUser = async () => {
  * @returns {Promise<Object>} 更新结果 { user }
  */
 export const updateUserProfile = async (data) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.put(
-        `${API_BASE_URL}/auth/profile`,
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        }
-    )
-    return response.data
+  const response = await api.put('/auth/profile', data)
+  return response.data
 }
