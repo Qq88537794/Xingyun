@@ -143,6 +143,9 @@ def update_project(project_id):
             return jsonify({'error': '状态值无效，只能为 active 或 archived'}), 400
         project.status = data['status']
     
+    if 'folder_id' in data:
+        project.folder_id = data['folder_id']
+    
     try:
         db.session.commit()
         

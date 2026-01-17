@@ -101,8 +101,6 @@
           <PanelRight :size="16" />
         </button>
       </div>
-      
-      <UserMenu />
     </div>
   </div>
 </template>
@@ -110,7 +108,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft } from 'lucide-vue-next'
-import UserMenu from './UserMenu.vue'
 import { ExportService } from '../services/export'
 import { useToast } from '../composables/useToast'
 

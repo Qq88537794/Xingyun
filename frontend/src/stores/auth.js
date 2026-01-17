@@ -169,25 +169,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 获取当前用户信息
-  const fetchUser = async () => {
-    if (!token.value) return { success: false }
+  // 手动设置用户信息和token（用于外部登录/注册）
+  const setUser = (userData, authToken) => {
+    user.value = userData
+    token.value = authToken
+
+    localStorage.setItem('token', authToken)
+    localStorage.setItem('user', JSON.stringify(userData))
 
     setupAxios()
-
-    try {
-      if (DEV_MODE) {
-        return { success: true }
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/user/me`)
-      user.value = response.data.user
-      localStorage.setItem('user', JSON.stringify(user.value))
-      return { success: true }
-    } catch (err) {
-      console.error('获取用户信息失败:', err)
-      return { success: false }
-    }
   }
 
   // 更新用户信息
@@ -262,7 +252,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     restoreUser,
-    fetchUser,
+    setUser,
     updateProfile,
     changePassword
   }

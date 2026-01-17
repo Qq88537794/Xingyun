@@ -109,3 +109,108 @@ def login():
         'user': user.to_dict(),
         'access_token': access_token
     }), 200
+
+
+@auth_bp.route('/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    """
+    Get current authenticated user info
+    
+    Headers:
+        Authorization: Bearer <access_token>
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    return jsonify({'user': user.to_dict()}), 200
+
+
+@auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """
+    Update user profile
+    
+    Headers:
+        Authorization: Bearer <access_token>
+    
+    Request JSON:
+    {
+        "username": "string" (optional),
+        "email": "string" (optional),
+        "current_password": "string" (required if changing password),
+        "new_password": "string" (optional)
+    }
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': '请求数据不能为空'}), 400
+    
+    # 更新用户名
+    if 'username' in data:
+        new_username = data['username'].strip()
+        if not new_username:
+            return jsonify({'error': '用户名不能为空'}), 400
+        
+        if len(new_username) < 2 or len(new_username) > 64:
+            return jsonify({'error': '用户名长度应为2-64个字符'}), 400
+        
+        # 检查用户名是否已被其他用户使用
+        if new_username != user.username:
+            existing_user = User.query.filter_by(username=new_username).first()
+            if existing_user:
+                return jsonify({'error': '用户名已被使用'}), 409
+            user.username = new_username
+    
+    # 更新邮箱
+    if 'email' in data:
+        new_email = data['email'].strip()
+        if not new_email:
+            return jsonify({'error': '邮箱不能为空'}), 400
+        
+        # 检查邮箱是否已被其他用户使用
+        if new_email != user.email:
+            existing_user = User.query.filter_by(email=new_email).first()
+            if existing_user:
+                return jsonify({'error': '邮箱已被使用'}), 409
+            user.email = new_email
+    
+    # 更新密码
+    if 'new_password' in data:
+        current_password = data.get('current_password', '')
+        new_password = data['new_password']
+        
+        # 验证当前密码
+        if not current_password:
+            return jsonify({'error': '请输入当前密码'}), 400
+        
+        if not user.check_password(current_password):
+            return jsonify({'error': '当前密码错误'}), 401
+        
+        # 验证新密码
+        if len(new_password) < 6:
+            return jsonify({'error': '新密码长度至少为6个字符'}), 400
+        
+        user.set_password(new_password)
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            'message': '个人资料更新成功',
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'更新失败: {str(e)}'}), 500
