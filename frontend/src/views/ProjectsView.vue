@@ -747,6 +747,17 @@ const emit = defineEmits(['select-project'])
 const authStore = useAuthStore()
 const toast = useToast()
 
+// 个人资料编辑状态（需要在 watch 之前声明）
+const isEditingProfile = ref(false)
+const showPasswordFields = ref(false)
+const profileForm = ref({
+  username: '',
+  email: '',
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
 // 监听认证状态变化
 watch(() => authStore.isAuthenticated, (newVal) => {
   if (newVal) {
@@ -836,17 +847,6 @@ const formData = ref({
 const folderFormData = ref({
   name: '',
   color: 'blue'
-})
-
-// 个人资料编辑状态
-const isEditingProfile = ref(false)
-const showPasswordFields = ref(false)
-const profileForm = ref({
-  username: '',
-  email: '',
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
 })
 
 // 计算当前显示的项目

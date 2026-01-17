@@ -451,8 +451,9 @@ const handleSelectProject = async (project) => {
   currentProjectId.value = project.id
   currentView.value = 'editor'
   
-  // 连接 WebSocket
-  wsService.connect('ws://localhost:8000/ws')
+  // 连接 WebSocket（暂时禁用，等待后端 WebSocket 服务实现）
+  // TODO: 启用 WebSocket 连接用于实时 AI 对话
+  // wsService.connect('ws://localhost:5000/ws')
   
   // 获取项目素材
   await fetchMaterials()

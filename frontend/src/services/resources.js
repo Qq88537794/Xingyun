@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const API_BASE_URL = 'http://localhost:5000/api'
+import api from './api'
 
 /**
  * 资源管理 API 服务
@@ -12,13 +10,8 @@ const API_BASE_URL = 'http://localhost:5000/api'
  * @returns {Promise<Array>} 资源列表
  */
 export const getResources = async (projectId) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/resources`, {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    })
-    return response.data.resources || []
+  const response = await api.get(`/projects/${projectId}/resources`)
+  return response.data.resources || []
 }
 
 /**
@@ -28,21 +21,19 @@ export const getResources = async (projectId) => {
  * @returns {Promise<Object>} 上传结果
  */
 export const uploadResource = async (projectId, file) => {
-    const token = localStorage.getItem('token')
-    const formData = new FormData()
-    formData.append('file', file)
+  const formData = new FormData()
+  formData.append('file', file)
 
-    const response = await axios.post(
-        `${API_BASE_URL}/projects/${projectId}/resources`,
-        formData,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data'
-            }
-        }
-    )
-    return response.data
+  const response = await api.post(
+    `/projects/${projectId}/resources`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+  return response.data
 }
 
 /**
@@ -54,26 +45,23 @@ export const uploadResource = async (projectId, file) => {
  * @returns {Promise<Object>} 上传结果
  */
 export const uploadResourceFromPath = async (projectId, filePath, fileContent, fileName) => {
-    const token = localStorage.getItem('token')
+  // 创建 Blob 并转为 File
+  const blob = new Blob([fileContent])
+  const file = new File([blob], fileName)
 
-    // 创建 Blob 并转为 File
-    const blob = new Blob([fileContent])
-    const file = new File([blob], fileName)
+  const formData = new FormData()
+  formData.append('file', file)
 
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await axios.post(
-        `${API_BASE_URL}/projects/${projectId}/resources`,
-        formData,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data'
-            }
-        }
-    )
-    return response.data
+  const response = await api.post(
+    `/projects/${projectId}/resources`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+  return response.data
 }
 
 /**
@@ -83,14 +71,6 @@ export const uploadResourceFromPath = async (projectId, filePath, fileContent, f
  * @returns {Promise<Object>} 删除结果
  */
 export const deleteResource = async (projectId, resourceId) => {
-    const token = localStorage.getItem('token')
-    const response = await axios.delete(
-        `${API_BASE_URL}/projects/${projectId}/resources/${resourceId}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }
-    )
-    return response.data
+  const response = await api.delete(`/projects/${projectId}/resources/${resourceId}`)
+  return response.data
 }
