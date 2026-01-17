@@ -1,6 +1,6 @@
 # 星韵 (Xingyun) 前后端 API 对接表
 
-> 最后更新时间：2026-01-14
+> 最后更新时间：2026-01-17
 
 ## 已完成对接的 API
 
@@ -8,6 +8,9 @@
 | -------- | -------- | ---------------------- | ------------------ | ------------------ | --------- |
 | 用户注册 | POST     | `/api/auth/register` | `stores/auth.js` | `routes/auth.py` | ✅ 已完成 |
 | 用户登录 | POST     | `/api/auth/login`    | `stores/auth.js` | `routes/auth.py` | ✅ 已完成 |
+| 获取当前用户 | GET | `/api/user/me` | `services/auth.js` | `routes/user.py` | ✅ 已完成 |
+| 更新用户资料 | PUT | `/api/user/profile` | `stores/auth.js`, `services/auth.js` | `routes/user.py` | ✅ 已完成 |
+| 修改密码 | POST | `/api/user/change-password` | `stores/auth.js` | `routes/user.py` | ✅ 已完成 |
 | 获取项目列表 | GET | `/api/projects` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
 | 创建项目 | POST | `/api/projects` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
 | 更新项目 | PUT | `/api/projects/<id>` | `services/projects.js` | `routes/projects.py` | ✅ 已完成 |
@@ -23,9 +26,10 @@
 | 模块 | API 数量 |
 |------|----------|
 | 认证模块 | 2 |
+| 用户模块 | 3 |
 | 项目模块 | 4 |
 | 资源模块 | 3 |
-| **总计** | **9** |
+| **总计** | **12** |
 
 ---
 
@@ -111,9 +115,89 @@ Content-Type: application/json
 
 ---
 
+### 用户模块
+
+#### 3. 获取当前用户信息
+
+**请求**
+
+```http
+GET /api/user/me
+Authorization: Bearer <token>
+```
+
+**响应 (200)**
+
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "string",
+    "email": "string",
+    "avatar": "string",
+    "description": "string",
+    "last_login": "2026-01-17T00:00:00",
+    "created_at": "2026-01-14T00:00:00"
+  }
+}
+```
+
+---
+
+#### 4. 更新用户资料
+
+**请求**
+
+```http
+PUT /api/user/profile
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "username": "string",      // 可选
+  "description": "string"    // 可选
+}
+```
+
+**响应 (200)**
+
+```json
+{
+  "message": "更新成功",
+  "user": { ... }
+}
+```
+
+---
+
+#### 5. 修改密码
+
+**请求**
+
+```http
+POST /api/user/change-password
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "oldPassword": "string",
+  "newPassword": "string"
+}
+```
+
+**响应 (200)**
+
+```json
+{
+  "message": "密码修改成功"
+}
+```
+
+---
+
 ### 项目模块
 
-#### 3. 获取项目列表
+#### 6. 获取项目列表
 
 **请求**
 
@@ -141,7 +225,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### 4. 创建项目
+#### 7. 创建项目
 
 **请求**
 
@@ -167,7 +251,7 @@ Content-Type: application/json
 
 ---
 
-#### 5. 更新项目
+#### 8. 更新项目
 
 **请求**
 
@@ -193,7 +277,7 @@ Content-Type: application/json
 
 ---
 
-#### 6. 删除项目
+#### 9. 删除项目
 
 **请求**
 
@@ -214,7 +298,7 @@ Authorization: Bearer <token>
 
 ### 资源模块
 
-#### 7. 获取资源列表
+#### 10. 获取资源列表
 
 **请求**
 
@@ -243,7 +327,7 @@ Authorization: Bearer <token>
 
 ---
 
-#### 8. 上传资源
+#### 11. 上传资源
 
 **请求**
 
@@ -266,7 +350,7 @@ file: <binary>
 
 ---
 
-#### 9. 删除资源
+#### 12. 删除资源
 
 **请求**
 
@@ -289,7 +373,7 @@ Authorization: Bearer <token>
 
 | 文件路径 | 功能 |
 |----------|------|
-| `stores/auth.js` | 用户认证（登录、注册、Token管理） |
+| `stores/auth.js` | 用户认证（登录、注册、Token管理、更新资料、修改密码） |
+| `services/auth.js` | 认证服务封装（登录、注册、获取用户信息、更新资料） |
 | `services/projects.js` | 项目 CRUD 操作 |
 | `services/resources.js` | 资源上传、列表、删除 |
-

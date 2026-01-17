@@ -53,16 +53,17 @@ export const register = async (username, email, password) => {
  * @returns {Promise<Object>} 用户信息
  */
 export const getCurrentUser = async () => {
-  const response = await api.get('/auth/me')
+  const response = await api.get('/user/me')
   return response.data.user
 }
 
 /**
  * 更新用户资料
- * @param {Object} data - 更新数据 { username?, email?, current_password?, new_password? }
+ * @param {Object} data - 更新数据 { username?, description?, avatar? }
  * @returns {Promise<Object>} 更新结果 { user }
  */
 export const updateUserProfile = async (data) => {
-  const response = await api.put('/auth/profile', data)
+  const response = await api.put('/user/profile', data)
   return response.data
 }
+

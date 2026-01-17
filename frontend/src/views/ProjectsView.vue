@@ -1502,7 +1502,7 @@ const verifyCurrentPassword = async () => {
   verifyingPassword.value = true
   try {
     // 调用后端API验证密码
-    const response = await fetch('http://localhost:5000/api/auth/verify-password', {
+    const response = await fetch('http://localhost:5000/api/user/verify-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1716,7 +1716,7 @@ const uploadAvatar = async (file) => {
   
   submitting.value = true
   try {
-    const response = await fetch('http://localhost:5000/api/auth/avatar', {
+    const response = await fetch('http://localhost:5000/api/user/avatar', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`

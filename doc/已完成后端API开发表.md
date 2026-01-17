@@ -10,7 +10,6 @@
 |------|------|------|------|----------|------|
 | POST | `/api/auth/register` | 用户注册 | 否 | `username`, `email`, `password` (JSON) | `user`, `access_token` |
 | POST | `/api/auth/login` | 用户登录 | 否 | `username`, `password` (JSON) | `user`, `access_token` |
-| GET | `/api/auth/me` | 获取当前用户信息 | JWT | - | `user` |
 
 ### 详细说明
 
@@ -65,7 +64,19 @@
 
 ---
 
-#### 3. 获取当前用户 `GET /api/auth/me`
+## 用户模块 (`/api/user`)
+
+| 方法 | 路径 | 功能 | 认证 | 请求参数 | 响应 |
+|------|------|------|------|----------|------|
+| GET | `/api/user/me` | 获取当前用户信息 | JWT | - | `user` |
+| PUT | `/api/user/profile` | 更新用户资料 | JWT | `username`, `description`, `avatar` (JSON, 可选) | `user` |
+| POST | `/api/user/change-password` | 修改密码 | JWT | `oldPassword`, `newPassword` (JSON) | `message` |
+| POST | `/api/user/verify-password` | 验证当前密码 | JWT | `password` (JSON) | `valid`, `message` |
+| POST | `/api/user/avatar` | 上传头像 | JWT | `avatar` (FormData) | `user` |
+
+### 详细说明
+
+#### 1. 获取当前用户 `GET /api/user/me`
 
 **请求头：**
 ```
@@ -75,9 +86,123 @@ Authorization: Bearer <access_token>
 **成功响应 (200)：**
 ```json
 {
-    "user": { "id": 1, "username": "...", "email": "..." }
+    "user": {
+        "id": 1,
+        "username": "...",
+        "email": "...",
+        "avatar": "...",
+        "description": "...",
+        "last_login": "ISO datetime",
+        "created_at": "ISO datetime"
+    }
 }
 ```
+
+---
+
+#### 2. 更新用户资料 `PUT /api/user/profile`
+
+**请求头：**
+```
+Authorization: Bearer <access_token>
+```
+
+**请求体：**
+```json
+{
+    "username": "string (可选)",
+    "description": "string (可选)",
+    "avatar": "string (可选)"
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+    "message": "更新成功",
+    "user": { ... }
+}
+```
+
+**错误响应：**
+- `400` - 参数验证失败
+- `409` - 用户名已被使用
+
+---
+
+#### 3. 修改密码 `POST /api/user/change-password`
+
+**请求头：**
+```
+Authorization: Bearer <access_token>
+```
+
+**请求体：**
+```json
+{
+    "oldPassword": "string",
+    "newPassword": "string (至少6字符)"
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+    "message": "密码修改成功"
+}
+```
+
+**错误响应：**
+- `400` - 参数为空或新密码过短
+- `401` - 原密码错误
+
+---
+
+#### 4. 验证密码 `POST /api/user/verify-password`
+
+**请求头：**
+```
+Authorization: Bearer <access_token>
+```
+
+**请求体：**
+```json
+{
+    "password": "string"
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+    "valid": true,
+    "message": "密码正确"
+}
+```
+
+---
+
+#### 5. 上传头像 `POST /api/user/avatar`
+
+**请求头：**
+```
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+```
+
+**请求体：** `multipart/form-data`
+- `avatar`: 图片文件 (PNG, JPG, JPEG, GIF, WebP)
+
+**成功响应 (200)：**
+```json
+{
+    "message": "头像上传成功",
+    "user": { ... }
+}
+```
+
+**错误响应：**
+- `400` - 没有上传文件 / 不支持的文件类型
 
 ---
 
@@ -153,7 +278,7 @@ Authorization: Bearer <access_token>
         "name": "项目名称",
         "description": "项目描述",
         "status": "active",
-        "resources": [...],  // 仅当 include_resources=true 时返回
+        "resources": [...],
         "created_at": "2026-01-12T10:00:00",
         "updated_at": "2026-01-12T10:00:00"
     }
@@ -359,7 +484,8 @@ Authorization: Bearer <access_token>
 
 | 模块 | API 数量 |
 |------|----------|
-| 认证模块 | 3 |
+| 认证模块 | 2 |
+| 用户模块 | 5 |
 | 项目模块 | 5 |
 | 资源模块 | 4 |
-| **总计** | **12** |
+| **总计** | **16** |
