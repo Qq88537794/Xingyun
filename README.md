@@ -1,515 +1,356 @@
-# 行云文档 - 智能文档处理平台
+# 行云文档 (Xingyun) - 智能文档处理平台
 
-基于Electron + Vue.js + TipTap的AI驱动文档生成与编辑桌面应用。
+基于 Electron + Vue.js + TipTap 的 AI 驱动文档生成与编辑桌面应用。
 
-## 项目概述
+## 📖 项目概述
 
 行云文档是一款集自然语言理解、内容生成、多轮交互与图像处理于一体的智能文档平台，旨在提供高效、精准且灵活的文档与图片生成解决方案。
 
-## 技术栈
+## 🛠️ 技术栈
 
-### 前端
+| 层级 | 技术 |
+|------|------|
+| **前端框架** | Electron + Vue.js 3 |
+| **富文本编辑** | TipTap |
+| **状态管理** | Pinia |
+| **样式** | TailwindCSS + Lucide Icons |
+| **后端框架** | Flask 3.0 |
+| **ORM** | SQLAlchemy |
+| **数据库** | MySQL 8.0+ |
+| **认证** | Flask-JWT-Extended |
 
-- **Electron** - 桌面应用框架
-- **Vue.js 3** - 渐进式JavaScript框架
-- **TipTap** - 富文本编辑器
-- **Pinia** - 状态管理
-- **TailwindCSS** - CSS框架
-- **Lucide Icons** - 图标库
+---
 
-### 后端
-
-- **FastAPI** - Python Web框架 (Flask 3.0)
-- **SQLAlchemy** - ORM框架
-- **PyMySQL** - MySQL驱动
-- **Flask-JWT-Extended** - JWT认证
-- **WebSocket** - 实时通信
-- **LLM** - 大语言模型（内容生成）
-- **RAG** - 检索增强生成
-
-## 核心功能
-
-### ✅ 已实现
-
-1. **用户认证系统** ⭐ 完善
-
-   - 精美的登录/注册页面（集成在桌面页面）
-   - 用户个人资料管理（查看、编辑）
-   - 修改用户名、邮箱和密码
-   - 友好的错误提示模态框
-   - JWT Token 认证
-   - 自动保存登录状态
-
-2. **项目管理系统** ⭐ 新增
-
-   - 项目创建、编辑、删除
-   - 项目列表展示（卡片式布局）
-   - 项目状态管理（活跃/归档）
-   - 项目搜索和筛选
-
-3. **文件夹管理** ⭐ 新增
-
-   - 创建、编辑、删除文件夹
-   - 文件夹颜色标识
-   - 项目分类管理
-   - 拖拽项目到文件夹
-   - 拖拽项目回桌面
-   - 文件夹项目计数
-
-4. **拖拽功能** ⭐ 新增
-
-   - 项目拖拽到文件夹
-   - 项目拖拽回桌面
-   - 拖拽视觉反馈（高亮、透明度）
-   - 拖拽状态管理
-
-5. **TipTap富文本编辑器**
-
-   - 撤销/重做功能（Ctrl+Z / Ctrl+Y）
-   - 支持标题、粗体、斜体、下划线等格式
-   - 支持有序/无序列表
-   - 支持插入图片和表格
-
-6. **材料管理**
-
-   - 上传参考材料（DOCX、PDF、TXT、MD、HTML）
-   - 材料列表展示和删除
-   - 按项目组织材料
-
-7. **AI对话界面**
-
-   - 与AI助手实时对话
-   - 消息历史记录
-   - 上下文感知对话
-
-8. **文档操作**
-
-   - 新建/打开/保存文档
-   - JSON格式文档模型
-   - 历史记录和版本控制
-   - 自动保存草稿
-
-9. **用户体验优化** ⭐ 新增
-
-   - 友好的错误提示模态框
-   - Toast 通知系统
-   - 加载状态提示
-   - 响应式设计
-   - 流畅的动画过渡
-
-10. **WebSocket通信**
-
-    - 与后端实时通信
-    - 自动重连机制
-
-### 🚧 待实现
-
-1. **AI功能集成**
-
-   - 基于材料的智能内容生成
-   - 大纲自动生成
-   - 内容优化和润色
-2. **文档导出**
-
-   - 导出为Word（.docx）
-   - 导出为PDF
-   - 导出为LaTeX
-   - 导出为Markdown
-3. **图表生成**
-
-   - 流程图（Mermaid.js）
-   - 架构图（PlantUML）
-   - AI生成图片
-4. **高级编辑功能**
-
-   - 协同编辑
-   - 评论和批注
-   - 模板系统
-
-## 项目结构
-
-```
-行云文档/
-├── backend/                    # Python后端服务
-│   ├── models/                 # 数据模型
-│   │   ├── user.py             # 用户模型
-│   │   ├── project.py          # 项目模型
-│   │   ├── folder.py           # 文件夹模型
-│   │   ├── resource.py         # 资源模型
-│   │   └── __init__.py
-│   ├── routes/                 # API路由
-│   │   ├── auth.py             # 认证路由
-│   │   ├── projects.py         # 项目路由
-│   │   ├── folders.py          # 文件夹路由
-│   │   ├── resources.py        # 资源路由
-│   │   └── __init__.py
-│   ├── migrations/             # 数据库迁移
-│   │   └── add_folders.sql     # 文件夹功能迁移
-│   ├── uploads/                # 文件上传目录
-│   ├── app.py                  # 后端入口
-│   ├── config.py               # 配置文件
-│   ├── requirements.txt        # 依赖列表
-│   └── start.bat               # Windows启动脚本
-├── doc/                        # 项目文档
-│   ├── 数据库表设计文档.md      # 数据库设计
-│   ├── 已完成后端API开发表.md   # API开发进度
-│   └── 已经对接的API开发表.md   # API对接状态
-├── frontend/                   # 前端项目 (Electron + Vue)
-│   ├── electron/               # Electron主进程
-│   │   ├── main.js             # 主进程入口
-│   │   └── preload.js          # 预加载脚本
-│   ├── src/                    # Vue源代码
-│   │   ├── components/         # 组件
-│   │   │   ├── ErrorModal.vue  # 错误提示模态框
-│   │   │   ├── TopBar.vue      # 顶部导航栏
-│   │   │   └── ...
-│   │   ├── views/              # 页面视图
-│   │   │   ├── ProjectsView.vue # 项目桌面页面
-│   │   │   └── EditorView.vue   # 编辑器页面
-│   │   ├── stores/             # 状态管理
-│   │   │   ├── auth.js         # 认证状态
-│   │   │   └── ...
-│   │   ├── services/           # API服务
-│   │   │   ├── auth.js         # 认证服务
-│   │   │   ├── folders.js      # 文件夹服务
-│   │   │   └── ...
-│   │   ├── composables/        # 组合式函数
-│   │   ├── App.vue             # 根组件
-│   │   ├── main.js             # 前端入口
-│   │   └── style.css           # 全局样式
-│   ├── dist/                   # 构建输出
-│   ├── package.json            # 前端项目配置
-│   ├── vite.config.js          # Vite配置
-│   ├── tailwind.config.js      # TailwindCSS配置
-│   └── index.html              # HTML模板
-└── README.md                   # 项目总文档
-```
-
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
 
-- **Node.js** 16.0+
-- **Python** 3.8+
-- **MySQL** 8.0+
+在开始之前，请确保已安装以下软件：
 
-### 安装步骤
+| 软件 | 版本 | 下载地址 |
+|------|------|----------|
+| Node.js | 16.0+ | [nodejs.org](https://nodejs.org/) |
+| Python | 3.8+ | [python.org](https://www.python.org/) |
+| MySQL | 8.0+ | [mysql.com](https://www.mysql.com/) |
+| Git | 最新版 | [git-scm.com](https://git-scm.com/) |
 
-#### 1. 克隆项目
+---
+
+### 第一步：克隆项目
 
 ```bash
 git clone https://github.com/Qq88537794/Xingyun.git
 cd Xingyun
 ```
 
-#### 2. 配置数据库
+---
 
-创建 MySQL 数据库：
+### 第二步：配置数据库
+
+#### 2.1 创建 MySQL 数据库
+
+登录 MySQL 并执行初始化脚本：
+
+```bash
+# 登录 MySQL
+mysql -u root -p
+
+# 在 MySQL 命令行中执行
+source backend/migrations/init_database.sql
+```
+
+或者分步执行：
 
 ```sql
-CREATE DATABASE xingyun CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS xingyun 
+  CHARACTER SET utf8mb4 
+  COLLATE utf8mb4_unicode_ci;
+
+-- 切换到数据库后执行初始化脚本
+USE xingyun;
+SOURCE backend/migrations/init_database.sql;
 ```
 
-运行初始化脚本：
+#### 2.2 配置环境变量
+
+复制环境变量模板并填入你的数据库配置：
 
 ```bash
-mysql -u root -p xingyun < doc/数据库表设计文档.md
+cd backend
+cp .env.example .env
 ```
 
-运行文件夹功能迁移：
+编辑 `.env` 文件：
 
-```bash
-mysql -u root -p xingyun < backend/migrations/add_folders.sql
+```ini
+# Flask 应用密钥 (建议修改为随机字符串)
+SECRET_KEY=your-secret-key
+JWT_SECRET_KEY=your-jwt-secret-key
+
+# MySQL 数据库配置
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=xingyun
+DB_USER=root
+DB_PASSWORD=your_mysql_password
 ```
 
-修改 `backend/config.py` 中的数据库配置：
+> ⚠️ **重要提示**：`.env` 文件包含敏感信息，已配置在 `.gitignore` 中，不会被提交到 Git。
 
-```python
-DB_USER = os.environ.get('DB_USER', 'root')
-DB_PASSWORD = os.environ.get('DB_PASSWORD', 'YourPassword')
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = os.environ.get('DB_PORT', '3306')
-DB_NAME = os.environ.get('DB_NAME', 'xingyun')
-```
+---
 
-#### 3. 安装后端依赖
+### 第三步：安装后端依赖
 
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-#### 4. 启动后端服务
+依赖列表：
+- Flask 3.0.0
+- Flask-SQLAlchemy 3.1.1
+- Flask-JWT-Extended 4.6.0
+- Flask-CORS 4.0.0
+- PyMySQL 1.1.0
+- python-dotenv 1.0.0
 
-```bash
-# Windows
-start.bat
+---
 
-# Linux/Mac
-python app.py
-```
-
-后端服务将启动在 `http://localhost:5000`
-
-#### 5. 安装前端依赖
-
-```bash
-cd frontend
-npm install
-```
-
-#### 6. 启动前端应用
-
-开发模式（带热重载）：
-
-```bash
-npm run electron:dev
-```
-
-构建生产版本：
-
-```bash
-npm run electron:build
-```
-
-### 首次使用
-
-1. 启动应用后，在桌面页面左下角点击"登录/注册"
-2. 注册新账号或使用已有账号登录
-3. 登录成功后即可开始使用项目管理和文档编辑功能
-
-## 功能特性详解
-
-### 桌面项目管理
-
-- **项目卡片视图**：以卡片形式展示所有项目，支持快速预览
-- **文件夹分类**：创建彩色文件夹对项目进行分类管理
-- **拖拽操作**：支持拖拽项目到文件夹或拖回桌面
-- **搜索筛选**：快速查找项目
-- **项目状态**：标记项目为活跃或归档状态
-
-### 用户认证与个人资料
-
-- **安全登录**：基于 JWT Token 的安全认证机制
-- **用户注册**：支持邮箱注册，自动验证用户名和邮箱唯一性
-- **个人资料编辑**：修改用户名、邮箱、密码
-- **头像管理**：支持自定义用户头像（待实现）
-- **友好提示**：所有操作都有清晰的错误提示和成功反馈
-
-### 文件夹管理
-
-- **创建文件夹**：自定义文件夹名称和颜色（6种颜色可选）
-- **编辑文件夹**：修改文件夹名称和颜色
-- **删除文件夹**：删除文件夹时，其中的项目会保留在根目录
-- **项目计数**：实时显示每个文件夹中的项目数量
-- **颜色标识**：通过颜色快速识别不同类别的文件夹
-
-### 富文本编辑器
-
-- **格式化工具**：标题、粗体、斜体、下划线、删除线
-- **列表支持**：有序列表、无序列表
-- **撤销重做**：完整的编辑历史记录（Ctrl+Z / Ctrl+Y）
-- **插入元素**：图片、表格、链接
-- **实时保存**：自动保存编辑内容
-
-### 材料管理
-
-- **多格式支持**：DOCX、PDF、TXT、MD、HTML
-- **拖拽上传**：支持拖拽文件到上传区域
-- **材料列表**：查看和管理已上传的参考材料
-- **按项目组织**：每个项目独立管理其参考材料
-
-## API 接口文档
-
-### 认证接口
-
-- `POST /api/auth/register` - 用户注册
-- `POST /api/auth/login` - 用户登录
-- `GET /api/auth/profile` - 获取用户信息
-- `PUT /api/auth/profile` - 更新用户信息
-
-### 项目接口
-
-- `GET /api/projects` - 获取所有项目
-- `POST /api/projects` - 创建项目
-- `PUT /api/projects/:id` - 更新项目
-- `DELETE /api/projects/:id` - 删除项目
-
-### 文件夹接口
-
-- `GET /api/folders` - 获取所有文件夹
-- `POST /api/folders` - 创建文件夹
-- `PUT /api/folders/:id` - 更新文件夹
-- `DELETE /api/folders/:id` - 删除文件夹
-- `POST /api/folders/:folderId/projects/:projectId` - 将项目添加到文件夹
-- `POST /api/folders/projects/:projectId/remove` - 将项目从文件夹移出
-
-### 资源接口
-
-- `GET /api/resources` - 获取资源列表
-- `POST /api/resources` - 上传资源
-- `DELETE /api/resources/:id` - 删除资源
-
-详细的 API 文档请参考 `doc/已完成后端API开发表.md`。
-
-## 核心概念
-
-### 1. 桌面式项目管理
-
-借鉴 GoodNotes 的设计理念，采用桌面式布局：
-- **左侧侧边栏**：显示文件夹列表和用户信息
-- **右侧主区域**：显示项目卡片
-- **拖拽交互**：直观的拖拽操作体验
-
-### 2. JSON文档模型
-
-整个文档以JSON格式作为唯一真实数据源，所有操作都是对JSON结构的修改。
-
-```json
-{
-  "type": "doc",
-  "content": [
-    {
-      "type": "heading",
-      "attrs": { "level": 1 },
-      "content": [{ "type": "text", "text": "标题" }]
-    },
-    {
-      "type": "paragraph",
-      "content": [{ "type": "text", "text": "段落内容" }]
-    }
-  ]
-}
-```
-
-### 3. AI专家团队（规划中）
-
-采用多个专业AI角色协同工作，而非单一AI模型：
-
-- **AI总指挥** - 任务调度和指令分发
-- **内容生成专家** - 文档内容创作
-- **格式专家** - 文档排版和美化
-- **图表专家** - 图表生成和优化
-
-### 4. WebSocket通信
-
-前端通过WebSocket与后端服务实时通信：
-
-```javascript
-// 发送消息到后端
-wsService.send({
-  type: 'chat',
-  message: '帮我生成一份项目报告',
-  context: {
-    document: editorJSON,
-    materials: uploadedFiles
-  }
-})
-
-// 接收后端响应
-wsService.on('message', (data) => {
-  if (data.type === 'document_update') {
-    editor.commands.setContent(data.content)
-  }
-})
-```
-
-## 开发指南
-
-### 代码规范
-
-- **Python**：遵循 PEP 8 规范
-- **JavaScript/Vue**：遵循 ESLint 规范
-- **提交信息**：使用语义化提交信息
-
-### 调试技巧
-
-#### 前端调试
-
-在开发模式下，按 `Ctrl+Shift+I` 打开开发者工具。
-
-#### 后端调试
-
-查看后端日志：
+### 第四步：启动后端服务
 
 ```bash
 cd backend
 python app.py
 ```
 
-### 常见问题
+成功启动后将显示：
 
-#### 1. 数据库连接失败
-
-检查 `backend/config.py` 中的数据库配置是否正确，确保 MySQL 服务已启动。
-
-#### 2. 前端无法连接后端
-
-确保后端服务已启动在 `http://localhost:5000`，检查防火墙设置。
-
-#### 3. 文件夹功能不显示
-
-确保已运行数据库迁移脚本 `backend/migrations/add_folders.sql`。
-
-#### 4. 登录后无法加载数据
-
-检查浏览器控制台是否有错误，确认 JWT Token 是否正确保存。
-
-## 项目路线图
-
-### 已完成 ✅
-
-- [x] 用户认证系统
-- [x] 项目管理功能
-- [x] 文件夹分类管理
-- [x] 拖拽交互功能
-- [x] 富文本编辑器基础功能
-- [x] 材料上传管理
-- [x] 友好的错误提示系统
-
-### 进行中 🚧
-
-- [ ] AI 内容生成集成
-- [ ] WebSocket 实时通信优化
-- [ ] 文档导出功能（Word、PDF）
-
-### 计划中 📋
-
-- [ ] 协同编辑功能
-- [ ] 图表智能生成
-- [ ] 模板系统
-- [ ] 移动端适配
-- [ ] 云端同步
-
-## 贡献指南
-
-欢迎贡献代码、报告问题或提出建议！
-
-### 贡献流程
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 报告问题
-
-如果发现 Bug 或有功能建议，请在 [Issues](https://github.com/Qq88537794/Xingyun/issues) 中提出。
-
-## 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
-
-## 致谢
-
-感谢所有为本项目做出贡献的开发者！
-
-## 联系方式
-
-- 项目地址：[https://github.com/Qq88537794/Xingyun](https://github.com/Qq88537794/Xingyun)
-- 问题反馈：[Issues](https://github.com/Qq88537794/Xingyun/issues)
+```
+==================================================
+Running on: http://127.0.0.1:5000
+Upload folder: .../backend/uploads
+==================================================
+```
 
 ---
 
-**行云文档** - 让文档创作更智能、更高效 ✨
+### 第五步：安装前端依赖
+
+打开新的终端窗口：
+
+```bash
+cd frontend
+npm install
+```
+
+---
+
+### 第六步：启动前端应用
+
+**开发模式**（推荐，支持热重载）：
+
+```bash
+npm run electron:dev
+```
+
+**生产构建**：
+
+```bash
+npm run electron:build
+```
+
+---
+
+### 第七步：开始使用
+
+1. 应用启动后，在主界面左下角点击 **"登录/注册"**
+2. 注册新账号（需要用户名、邮箱、密码）
+3. 登录成功后即可开始使用项目管理和文档编辑功能
+
+---
+
+## 📁 项目结构
+
+```
+Xingyun/
+├── backend/                    # Python 后端服务
+│   ├── models/                 # 数据模型
+│   │   ├── user.py             # 用户模型
+│   │   ├── project.py          # 项目模型
+│   │   ├── folder.py           # 文件夹模型
+│   │   └── resource.py         # 资源模型
+│   ├── routes/                 # API 路由
+│   │   ├── auth.py             # 认证路由 (/api/auth)
+│   │   ├── user.py             # 用户路由 (/api/user)
+│   │   ├── projects.py         # 项目路由 (/api/projects)
+│   │   ├── folders.py          # 文件夹路由 (/api/folders)
+│   │   └── resources.py        # 资源路由
+│   ├── migrations/             # 数据库迁移
+│   │   └── init_database.sql   # 数据库初始化脚本
+│   ├── uploads/                # 文件上传目录
+│   ├── app.py                  # 后端入口
+│   ├── config.py               # 配置文件
+│   ├── requirements.txt        # Python 依赖
+│   ├── .env.example            # 环境变量模板
+│   └── .env                    # 环境变量 (不提交)
+├── frontend/                   # Electron + Vue 前端
+│   ├── electron/               # Electron 主进程
+│   │   ├── main.js             # 主进程入口
+│   │   └── preload.js          # 预加载脚本
+│   ├── src/                    # Vue 源代码
+│   │   ├── components/         # 组件
+│   │   ├── views/              # 页面视图
+│   │   ├── stores/             # Pinia 状态管理
+│   │   ├── services/           # API 服务
+│   │   └── App.vue             # 根组件
+│   ├── package.json            # 前端依赖
+│   └── vite.config.js          # Vite 配置
+├── doc/                        # 项目文档
+│   ├── 已完成后端API开发表.md   # 后端 API 文档
+│   ├── 已经对接的API开发表.md   # 前后端对接文档
+│   └── 数据库表设计文档.md      # 数据库设计文档
+├── .gitignore                  # Git 忽略配置
+└── README.md                   # 项目说明
+```
+
+---
+
+## 🔌 API 接口概览
+
+### 认证模块 `/api/auth`
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| POST | `/api/auth/register` | 用户注册 |
+| POST | `/api/auth/login` | 用户登录 |
+
+### 用户模块 `/api/user`
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/api/user/me` | 获取当前用户信息 |
+| PUT | `/api/user/profile` | 更新用户资料 |
+| POST | `/api/user/change-password` | 修改密码 |
+| POST | `/api/user/verify-password` | 验证密码 |
+| POST | `/api/user/avatar` | 上传头像 |
+
+### 项目模块 `/api/projects`
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/api/projects` | 获取项目列表 |
+| POST | `/api/projects` | 创建项目 |
+| GET | `/api/projects/<id>` | 获取项目详情 |
+| PUT | `/api/projects/<id>` | 更新项目 |
+| DELETE | `/api/projects/<id>` | 删除项目 |
+
+### 文件夹模块 `/api/folders`
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/api/folders` | 获取文件夹列表 |
+| POST | `/api/folders` | 创建文件夹 |
+| PUT | `/api/folders/<id>` | 更新文件夹 |
+| DELETE | `/api/folders/<id>` | 删除文件夹 |
+
+### 资源模块 `/api/projects/<pid>/resources`
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/api/projects/<pid>/resources` | 获取资源列表 |
+| POST | `/api/projects/<pid>/resources` | 上传资源 |
+| DELETE | `/api/projects/<pid>/resources/<rid>` | 删除资源 |
+
+> 📚 详细 API 文档请参考 [doc/已完成后端API开发表.md](doc/已完成后端API开发表.md)
+
+---
+
+## ✨ 核心功能
+
+### 已实现 ✅
+
+- **用户认证系统** - JWT Token 认证、登录/注册、个人资料管理
+- **项目管理** - 创建、编辑、删除项目，支持搜索筛选
+- **文件夹管理** - 彩色文件夹分类，支持拖拽操作
+- **富文本编辑器** - 基于 TipTap，支持格式化、撤销/重做
+- **材料管理** - 上传 DOCX、PDF、TXT、MD 等格式文件
+- **AI 对话界面** - 与 AI 助手实时对话
+
+### 待实现 🚧
+
+- AI 内容生成集成
+- 文档导出 (Word、PDF、LaTeX)
+- 智能图表生成
+- 协同编辑功能
+
+---
+
+## 🐛 常见问题
+
+### 1. 数据库连接失败
+
+**症状**：启动后端时报 `Access denied` 或 `Connection refused`
+
+**解决方案**：
+1. 确认 MySQL 服务已启动
+2. 检查 `.env` 文件中的数据库配置是否正确
+3. 确认数据库用户有访问权限
+
+### 2. 前端无法连接后端
+
+**症状**：登录时显示"网络错误"
+
+**解决方案**：
+1. 确认后端服务已启动在 `http://localhost:5000`
+2. 检查是否有防火墙阻止连接
+3. 查看后端控制台是否有错误日志
+
+### 3. 中文路径导致编码错误
+
+**症状**：`UnicodeEncodeError` 或数据库路径错误
+
+**解决方案**：
+将项目移动到不含中文的路径，例如 `C:\Projects\Xingyun`
+
+### 4. 依赖安装失败
+
+**症状**：`pip install` 或 `npm install` 报错
+
+**解决方案**：
+```bash
+# Python 使用国内镜像
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Node.js 使用国内镜像
+npm install --registry=https://registry.npmmirror.com
+```
+
+---
+
+## 🤝 贡献指南
+
+欢迎贡献代码、报告问题或提出建议！
+
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+---
+
+## 📄 许可证
+
+本项目采用 MIT 许可证。
+
+---
+
+## 📞 联系方式
+
+- **项目地址**：[https://github.com/Qq88537794/Xingyun](https://github.com/Qq88537794/Xingyun)
+- **问题反馈**：[Issues](https://github.com/Qq88537794/Xingyun/issues)
+
+---
+
+**星韵文档** - 让文档创作更智能、更高效 ✨
