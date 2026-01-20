@@ -1,11 +1,14 @@
 import os
 import mimetypes
+import logging
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from models import db
 from models.project import Project
 from models.resource import ProjectResource
+
+logger = logging.getLogger(__name__)
 
 # 初始化并添加 Office 文档 MIME 类型支持
 mimetypes.init()
@@ -143,6 +146,38 @@ def upload_resource(project_id):
         db.session.add(resource)
         db.session.commit()
         
+        # 自动索引到知识库（支持的文件类型）
+        indexable_extensions = {'.txt', '.md', '.pdf', '.docx'}
+        _, ext = os.path.splitext(original_filename)
+        
+        if ext.lower() in indexable_extensions:
+            try:
+                from ai.rag.knowledge_base import get_kb_service
+                kb_service = get_kb_service()
+                index_result = kb_service.index_resource(
+                    project_id=project_id,
+                    resource_id=resource.id,
+                    file_path=file_path,
+                    metadata={
+                        'filename': original_filename,
+                        'mime_type': mime_type,
+                        'file_size': file_size
+                    }
+                )
+                
+                if index_result.get('success'):
+                    resource.parsing_status = 'completed'
+                    db.session.commit()
+                    logger.info(f"资源 {resource.id} 已索引到知识库: {index_result.get('chunk_count')} 个分块")
+                else:
+                    resource.parsing_status = 'failed'
+                    db.session.commit()
+                    logger.warning(f"资源 {resource.id} 索引失败: {index_result.get('error')}")
+            except Exception as e:
+                logger.error(f"知识库索引失败: {e}")
+                resource.parsing_status = 'failed'
+                db.session.commit()
+        
         return jsonify({
             'message': '文件上传成功',
             'resource': resource.to_dict()
@@ -200,6 +235,15 @@ def delete_resource(project_id, resource_id):
         return jsonify({'error': '资源不存在'}), 404
     
     try:
+        # 从知识库移除资源（如果已索引）
+        try:
+            from ai.rag.knowledge_base import get_kb_service
+            kb_service = get_kb_service()
+            kb_service.remove_resource(project_id, resource_id)
+            logger.info(f"资源 {resource_id} 已从知识库移除")
+        except Exception as e:
+            logger.warning(f"从知识库移除资源失败: {e}")
+        
         # 软删除资源
         resource.soft_delete()
         db.session.commit()

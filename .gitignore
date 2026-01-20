@@ -6,6 +6,7 @@ __pycache__/
 *.pyd
 
 # 环境变量
+.venv
 .env
 .env.local
 backend/venv
@@ -42,3 +43,6 @@ backend/uploads/
 *.tmp
 *.bak
 *.cache
+
+# 疑问文件
+AI的疑问
