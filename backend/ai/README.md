@@ -43,11 +43,13 @@ ai/
 统一的AI服务入口，支持两种模式：
 
 #### Simple模式（默认）
+
 - 直接调用LLM生成响应
 - 自动解析AI建议的文档操作
 - 适用于简单问答和单次操作
 
 #### Agent模式（enable_agent=true）
+
 - 使用Finish Reason驱动的循环
 - 支持多步骤工具调用
 - 适用于复杂文档编辑任务
@@ -251,7 +253,7 @@ class MyNewTool(BaseTool):
         return {"success": True, ...}
 ```
 
-2. 在 `create_default_registry` 中注册工具
+1. 在 `create_default_registry` 中注册工具
 
 ### 添加新LLM提供商
 
