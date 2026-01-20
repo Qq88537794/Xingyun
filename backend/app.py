@@ -9,6 +9,45 @@ from models import db
 from routes import register_blueprints
 
 
+def init_llm():
+    """初始化LLM工厂"""
+    from ai.llm import init_llm_factory, ModelProvider
+    
+    # 读取环境配置
+    llm_provider = os.getenv('LLM_PROVIDER', 'zhipu')
+    zhipu_key = os.getenv('ZHIPU_API_KEY')
+    gemini_key = os.getenv('GEMINI_API_KEY')
+    
+    configs = []
+    
+    # 根据配置创建LLM实例
+    if zhipu_key:
+        configs.append({
+            'provider': 'zhipu',
+            'api_key': zhipu_key,
+            'model_name': 'glm-4-flash',
+            'instance_name': 'zhipu_default'
+        })
+    
+    if gemini_key:
+        configs.append({
+            'provider': 'gemini',
+            'api_key': gemini_key,
+            'model_name': 'gemini-2.0-flash-exp',
+            'instance_name': 'gemini_default'
+        })
+    
+    if not configs:
+        print("警告: 未配置任何LLM API密钥")
+        return
+    
+    # 初始化工厂
+    default_provider = ModelProvider.ZHIPU if llm_provider == 'zhipu' else ModelProvider.GEMINI
+    factory = init_llm_factory(configs, default_provider=default_provider)
+    
+    print(f"LLM工厂初始化成功，默认提供商: {default_provider.value}")
+
+
 def create_app():
     """Application factory function"""
     app = Flask(__name__)
@@ -23,6 +62,10 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": "*"}, r"/uploads/*": {"origins": "*"}})
     db.init_app(app)
     JWTManager(app)
+    
+    # Initialize LLM
+    with app.app_context():
+        init_llm()
     
     # Create upload folder if not exists
     if not os.path.exists(Config.UPLOAD_FOLDER):
