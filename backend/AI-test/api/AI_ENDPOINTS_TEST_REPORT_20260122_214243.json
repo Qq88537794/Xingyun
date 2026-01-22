@@ -1,0 +1,143 @@
+{
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "pass_rate": "100.0%"
+  },
+  "results": [
+    {
+      "test": "创建项目",
+      "success": true,
+      "message": "项目创建成功: AI测试项目_214154",
+      "details": {
+        "project_id": 5
+      },
+      "timestamp": "2026-01-22T21:41:54.461386"
+    },
+    {
+      "test": "上传资源 - AI技术介绍.txt",
+      "success": true,
+      "message": "资源上传成功",
+      "details": {
+        "resource_id": 3,
+        "filename": "AI技术介绍.txt",
+        "size": 541
+      },
+      "timestamp": "2026-01-22T21:41:57.002198"
+    },
+    {
+      "test": "上传资源 - 机器学习实践.md",
+      "success": true,
+      "message": "资源上传成功",
+      "details": {
+        "resource_id": 4,
+        "filename": "机器学习实践.md",
+        "size": 445
+      },
+      "timestamp": "2026-01-22T21:41:57.086168"
+    },
+    {
+      "test": "Simple模式 - 普通问答",
+      "success": true,
+      "message": "AI响应成功",
+      "details": {
+        "reply_length": 85,
+        "tokens_used": 1232,
+        "sources": 3
+      },
+      "timestamp": "2026-01-22T21:42:05.650696"
+    },
+    {
+      "test": "Simple模式 - 带文档上下文",
+      "success": true,
+      "message": "AI响应成功",
+      "details": {
+        "reply_length": 106,
+        "tokens_used": 1318,
+        "sources": 3
+      },
+      "timestamp": "2026-01-22T21:42:13.096435"
+    },
+    {
+      "test": "Agent模式 - 生成大纲",
+      "success": true,
+      "message": "AI响应成功",
+      "details": {
+        "reply_length": 52,
+        "operations_count": 1,
+        "operation_type": "generate_outline",
+        "tokens_used": 1403
+      },
+      "timestamp": "2026-01-22T21:42:21.999120"
+    },
+    {
+      "test": "Agent模式 - 扩写内容",
+      "success": true,
+      "message": "AI响应成功",
+      "details": {
+        "reply_length": 762,
+        "operations_count": 0,
+        "operation_type": null,
+        "tokens_used": 1527
+      },
+      "timestamp": "2026-01-22T21:42:36.644733"
+    },
+    {
+      "test": "Agent模式 - 生成摘要",
+      "success": true,
+      "message": "AI响应成功",
+      "details": {
+        "reply_length": 53,
+        "operations_count": 1,
+        "operation_type": "summarize",
+        "tokens_used": 1429
+      },
+      "timestamp": "2026-01-22T21:42:42.606337"
+    },
+    {
+      "test": "获取知识库信息",
+      "success": true,
+      "message": "知识库信息获取成功",
+      "details": {
+        "collection_name": null,
+        "vector_count": null,
+        "indexed_resources": [
+          3,
+          4
+        ]
+      },
+      "timestamp": "2026-01-22T21:42:42.878444"
+    },
+    {
+      "test": "知识库搜索 - '人工智能'",
+      "success": true,
+      "message": "搜索成功，找到3个结果",
+      "details": {
+        "results_count": 3,
+        "top_score": 0.59150386
+      },
+      "timestamp": "2026-01-22T21:42:42.913723"
+    },
+    {
+      "test": "知识库搜索 - '机器学习的应用'",
+      "success": true,
+      "message": "搜索成功，找到3个结果",
+      "details": {
+        "results_count": 3,
+        "top_score": 0.5578596
+      },
+      "timestamp": "2026-01-22T21:42:42.962760"
+    },
+    {
+      "test": "知识库搜索 - '深度学习技术'",
+      "success": true,
+      "message": "搜索成功，找到3个结果",
+      "details": {
+        "results_count": 3,
+        "top_score": 0.51636606
+      },
+      "timestamp": "2026-01-22T21:42:43.001591"
+    }
+  ]
+}

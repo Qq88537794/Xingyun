@@ -1,0 +1,732 @@
+
+================================================================================
+  AI模块接口测试 (使用管理员Token)
+  测试时间: 2026-01-22 21:41:54
+================================================================================
+
+✓ 使用管理员Token: dev-admin-token-2026-xingyun
+✓ 后端地址: http://127.0.0.1:5000
+
+
+================================================================================
+  1. 创建测试项目
+================================================================================
+
+📤 请求:
+   POST http://127.0.0.1:5000/api/projects
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "name": "AI测试项目_214154",
+  "description": "用于测试AI接口的项目"
+}
+
+📥 响应:
+   Status: 201
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:41:54 GMT', 'Content-Type': 'application/json', 'Content-Length': '371', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'} 
+   Body: {
+  "message": "项目创建成功",
+  "project": {
+    "created_at": "2026-01-22T13:41:54",
+    "deleted_at": null,
+    "description": "用于测试AI接口的项目",
+    "folder_id": null,
+    "id": 5,
+    "is_deleted": false,
+    "name": "AI测试项目_214154",
+    "status": "active",
+    "user_id": 1
+  }
+}
+
+✅ 通过 | 创建项目
+   消息: 项目创建成功: AI测试项目_214154
+   详情: {
+  "project_id": 5
+}
+
+
+================================================================================
+  2. 资源上传测试
+================================================================================
+
+正在上传: AI技术介绍.txt
+文件大小: 541 字节
+
+📤 请求:
+   POST http://127.0.0.1:5000/api/projects/5/resources
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun"
+}
+   Files: ['file']
+
+📥 响应:
+   Status: 201
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:41:57 GMT', 'Content-Type': 'application/json', 'Content-Length': '528', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'} 
+   Body: {
+  "message": "文件上传成功",
+  "resource": {
+    "deleted_at": null,
+    "error_msg": null,
+    "file_path": "F:\\Code\\20260117_xingyun\\backend\\uploads\\5\\AI_1769089314480246_6567.txt",
+    "file_size": 1409,
+    "filename": "AI技术介绍.txt",
+    "id": 3,
+    "is_deleted": false,
+    "mime_type": "text/plain",
+    "parsing_status": "completed",
+    "project_id": 5,
+    "storage_provider": "local",
+    "uploaded_at": "2026-01-22T13:41:54",
+    "vector_collection_id": null
+  }
+}
+
+✅ 通过 | 上传资源 - AI技术介绍.txt
+   消息: 资源上传成功
+   详情: {
+  "resource_id": 3,
+  "filename": "AI技术介绍.txt",
+  "size": 541
+}
+
+正在上传: 机器学习实践.md
+文件大小: 445 字节
+
+📤 请求:
+   POST http://127.0.0.1:5000/api/projects/5/resources
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun"
+}
+   Files: ['file']
+
+📥 响应:
+   Status: 201
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:41:57 GMT', 'Content-Type': 'application/json', 'Content-Length': '539', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'} 
+   Body: {
+  "message": "文件上传成功",
+  "resource": {
+    "deleted_at": null,
+    "error_msg": null,
+    "file_path": "F:\\Code\\20260117_xingyun\\backend\\uploads\\5\\md_1769089317008607_6165.md",
+    "file_size": 1020,
+    "filename": "机器学习实践.md",
+    "id": 4,
+    "is_deleted": false,
+    "mime_type": "text/markdown",
+    "parsing_status": "completed",
+    "project_id": 5,
+    "storage_provider": "local",
+    "uploaded_at": "2026-01-22T13:41:57",
+    "vector_collection_id": null
+  }
+}
+
+✅ 通过 | 上传资源 - 机器学习实践.md
+   消息: 资源上传成功
+   详情: {
+  "resource_id": 4,
+  "filename": "机器学习实践.md",
+  "size": 445
+}
+
+
+✅ 成功上传 2 个资源
+⏳ 等待5秒让资源索引完成...
+
+================================================================================
+  3. AI聊天接口测试 - Simple模式
+================================================================================
+
+
+测试: 普通问答
+请求: 什么是人工智能？
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/chat
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "message": "什么是人工智能？",
+  "project_id": 5,
+  "mode": "simple"
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:05 GMT', 'Content-Type': 'application/json', 'Content-Length': '3425', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "message": "人工智能（Artificial Intelligence, AI）是计算机科学的一个重要分支，它致力于研究和开发能够模 拟、延伸和扩展人的智能的理论、方法、技术及应用系统。",
+    "metadata": {},
+    "operations": [],
+    "requires_confirmation": false,
+    "session_id": "02136839-9f1b-4d8e-b703-3129b985f746",
+    "sources": [
+      {
+        "resource_id": 3,
+        "score": 0.65513253,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2...."
+      },
+      {
+        "resource_id": 3,
+        "score": 0.5880375,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "resource_id": 4,
+        "score": 0.37490153,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n#..."
+      }
+    ],
+    "tokens_used": 1232
+  },
+  "message": "success"
+}
+
+回复: 人工智能（Artificial Intelligence, AI）是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和 扩展人的智能的理论、方法、技术及应用系统。
+✅ 通过 | Simple模式 - 普通问答
+   消息: AI响应成功
+   详情: {
+  "reply_length": 85,
+  "tokens_used": 1232,
+  "sources": 3
+}
+
+
+测试: 带文档上下文
+请求: 总结一下这段内容的要点
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/chat
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "message": "总结一下这段内容的要点",
+  "project_id": 5,
+  "mode": "simple",
+  "document_content": "人工智能（AI）是计算机科学的一个分支，致力于创建能够模拟人类智能的系统。AI包括机器学 习、深度学习、自然语言处理等多个子领域。"
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:13 GMT', 'Content-Type': 'application/json', 'Content-Length': '4155', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "message": "这段内容主要介绍了人工智能（AI）的基本概念和涵盖的子领域。以下是内容的要点总结：\n- 人工智能是计算机科学的一个分支，旨在创建模拟人类智能的系统。\n- AI包括多个子领域，如机器学习、深度学习和自然语言处理等。",
+    "metadata": {},
+    "operations": [
+      {
+        "content": "人工智能（AI）是计算机科学的一个分支，旨在创建模拟人类智能的系统。AI包括多个子领域，如机器学习、深度学习和自然语言处理等。",
+        "metadata": {},
+        "operation_type": "summarize",
+        "position": null,
+        "target_file": null
+      }
+    ],
+    "requires_confirmation": true,
+    "session_id": "1b2f4c6e-7512-4c89-8697-fcaf271297c0",
+    "sources": [
+      {
+        "resource_id": 4,
+        "score": 0.46679372,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n#..."
+      },
+      {
+        "resource_id": 3,
+        "score": 0.4425337,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "resource_id": 3,
+        "score": 0.3748782,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2...."
+      }
+    ],
+    "tokens_used": 1318
+  },
+  "message": "success"
+}
+
+回复: 这段内容主要介绍了人工智能（AI）的基本概念和涵盖的子领域。以下是内容的要点总结：
+- 人工智能是计算机科学的一个分支，旨在创建模拟人类智能的系统。
+- AI包括多个子领域，如机器学习、深度学习和自然...
+✅ 通过 | Simple模式 - 带文档上下文
+   消息: AI响应成功
+   详情: {
+  "reply_length": 106,
+  "tokens_used": 1318,
+  "sources": 3
+}
+
+
+================================================================================
+  4. AI聊天接口测试 - Agent模式
+================================================================================
+
+
+测试: 生成大纲
+请求: 请为'AI应用开发'这个主题生成一个详细的文档大纲
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/chat
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "message": "请为'AI应用开发'这个主题生成一个详细的文档大纲",
+  "project_id": 5,
+  "mode": "agent"
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:21 GMT', 'Content-Type': 'application/json', 'Content-Length': '4362', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "message": "我已为您生成了关于'AI应用开发'的详细文档大纲，包含5个主要章节和若干子章节。您可以根据需要进 行调整。",
+    "metadata": {},
+    "operations": [
+      {
+        "content": "1. 引言\n1.1 背景介绍\n1.2 AI应用开发的重要性\n2. AI应用开发的基本流程\n2.1 需求分析\n2.2 数据准备\n2.3 模型选择与训练\n2.4 模型评估与优化\n3. 机器学习算法与框架\n3.1 监督学习算法\n3.2 无监督学习 算法\n3.3 深度学习框架\n4. AI应用开发实践\n4.1 案例分析\n4.2 开发工具与环境\n4.3 安全与伦理问题\n5. 未来展望与挑战\n5.1 技术发展趋势\n5.2 应用领域拓展\n5.3 安全与伦理挑战",
+        "metadata": {},
+        "operation_type": "generate_outline",
+        "position": null,
+        "target_file": null
+      }
+    ],
+    "requires_confirmation": true,
+    "session_id": "40e8e15b-5c11-4143-8b40-ed11360298ea",
+    "sources": [
+      {
+        "resource_id": 3,
+        "score": 0.49429876,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2...."
+      },
+      {
+        "resource_id": 3,
+        "score": 0.45659202,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "resource_id": 4,
+        "score": 0.42595595,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n#..."
+      }
+    ],
+    "tokens_used": 1403
+  },
+  "message": "success"
+}
+
+回复: 我已为您生成了关于'AI应用开发'的详细文档大纲，包含5个主要章节和若干子章节。您可以根据需要进行调整。   
+操作: generate_outline
+✅ 通过 | Agent模式 - 生成大纲
+   消息: AI响应成功
+   详情: {
+  "reply_length": 52,
+  "operations_count": 1,
+  "operation_type": "generate_outline",
+  "tokens_used": 1403
+}
+
+
+测试: 扩写内容
+请求: 请扩写这段内容，增加更多细节和例子
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/chat
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "message": "请扩写这段内容，增加更多细节和例子",
+  "project_id": 5,
+  "mode": "agent",
+  "document_content": "# AI应用开发\n\n人工智能正在改变世界。",
+  "selected_text": "人工智能正在改变世界。"
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:36 GMT', 'Content-Type': 'application/json', 'Content-Length': '6694', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "message": "```json\n{\n    \"message\": \"我已为您扩写了关于'人工智能正在改变世界'的内容，增加了更多细 节和例子，以丰富文档内容。\",\n    \"operation\": {\n        \"type\": \"expand_content\",\n        \"content\": \"人工智能正在改变世界，其影响遍及各个领域。以下是一些具体的例子：\n\n1. **医疗健康**：AI在医疗领域的应用日益广泛。例如，通过深度学习技术，AI可以帮助医生进行更准确的疾病诊断，如通过分析医学影像识别早期癌症。此外，AI还可以辅助药物研发，通过模拟药物与生物体的相互作用，加速新药的研发进程。\n\n2. **金融科技**：在金融领域 ，AI的应用主要体现在智能投顾、风险控制和反欺诈等方面。例如，利用机器学习算法，银行可以更有效地识别潜在的风险交易，从而降低欺诈风险。\n\n3. **智能制造**：AI技术在制造业中的应用，可以提高生产效率，降低成本。例如，通过 工业机器人实现自动化生产，不仅可以提高生产速度，还可以保证产品质量的稳定性。\n\n4. **自动驾驶**：自动驾驶技 术是AI在交通领域的重要应用。通过整合环境感知、路径规划和决策控制等技术，自动驾驶汽车可以实现安全、高效的自动驾驶。\n\n5. **智能客服**：AI在客户服务领域的应用，可以提高客户满意度，降低企业运营成本。例如，通过智能客服 机器人，企业可以提供24小时不间断的客户服务，解答客户疑问。\n\n6. **教育领域**：AI在教育领域的应用，可以提供 个性化学习方案，帮助学生提高学习效率。例如，通过分析学生的学习数据，AI可以为每个学生量身定制学习计划。\n\n总之，人工智能正在深刻地改变着我们的生活，为各个领域带来前所未有的机遇和挑战。\"\n    }\n}\n```",
+    "metadata": {},
+    "operations": [],
+    "requires_confirmation": false,
+    "session_id": "386e263c-effe-412f-b7b8-8cf525ada590",
+    "sources": [
+      {
+        "resource_id": 3,
+        "score": 0.36004663,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "resource_id": 3,
+        "score": 0.32661757,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2...."
+      },
+      {
+        "resource_id": 4,
+        "score": 0.32260782,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n#..."
+      }
+    ],
+    "tokens_used": 1527
+  },
+  "message": "success"
+}
+
+回复: ```json
+{
+    "message": "我已为您扩写了关于'人工智能正在改变世界'的内容，增加了更多细节和例子，以丰富文档内容。",    
+    "operation": {
+        ...
+✅ 通过 | Agent模式 - 扩写内容
+   消息: AI响应成功
+   详情: {
+  "reply_length": 762,
+  "operations_count": 0,
+  "operation_type": null,
+  "tokens_used": 1527
+}
+
+
+测试: 生成摘要
+请求: 请总结这篇文档的主要内容
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/chat
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "message": "请总结这篇文档的主要内容",
+  "project_id": 5,
+  "mode": "agent",
+  "document_content": "\n# 人工智能技术发展报告\n\n## 1. 引言\n人工智能（Artificial Intelligence, AI）是当今科技领域最热门的话题之一。从自动驾驶到智能助手，AI技术正在深刻改变我们的生活方式。\n\n## 2. 主要技术\n### 2.1 机器学习\n机器学习是AI的核心技术，通过算法让计算机从数据中学习规律。\n\n### 2.2 深度学习\n深度学习利用神经网络模拟人脑处理信息，在图像识别、语音识别等领域取得突破。\n\n## 3. 应用场景\nAI在医疗诊断、金融风控、智能制造等多个领域展现出巨大潜力。\n\n## 4. 未来展望\n随着算力提升和算法优化，AI将在更多领域发挥作用。\n          
+      "
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:42 GMT', 'Content-Type': 'application/json', 'Content-Length': '4170', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "message": "这篇文档主要介绍了人工智能技术的发展概况。包括人工智能的定义、核心技术和应用领域，以及对其未来发展的展望。",
+    "metadata": {},
+    "operations": [
+      {
+        "content": "人工智能技术发展报告主要内容包括：1. 引言，介绍人工智能的基本概念和重要性；2. 主要技术，包括机器学习和深度学习；3. 应用场景，涉及医疗诊断、金融风控、智能制造等领域；4. 未来展望，讨论人工智能技术在未来可能的应用和发展趋势。",
+        "metadata": {},
+        "operation_type": "summarize",
+        "position": null,
+        "target_file": null
+      }
+    ],
+    "requires_confirmation": true,
+    "session_id": "a6d5eaf4-634d-4517-a788-cc1d9e330fd1",
+    "sources": [
+      {
+        "resource_id": 4,
+        "score": 0.42711535,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n#..."
+      },
+      {
+        "resource_id": 3,
+        "score": 0.39006823,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "resource_id": 3,
+        "score": 0.3591616,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2...."
+      }
+    ],
+    "tokens_used": 1429
+  },
+  "message": "success"
+}
+
+回复: 这篇文档主要介绍了人工智能技术的发展概况。包括人工智能的定义、核心技术和应用领域，以及对其未来发展的展望。
+操作: summarize
+✅ 通过 | Agent模式 - 生成摘要
+   消息: AI响应成功
+   详情: {
+  "reply_length": 53,
+  "operations_count": 1,
+  "operation_type": "summarize",
+  "tokens_used": 1429
+}
+
+
+================================================================================
+  4. 知识库信息接口测试
+================================================================================
+
+📤 请求:
+   GET http://127.0.0.1:5000/api/ai/knowledge-base/5/info
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:42 GMT', 'Content-Type': 'application/json', 'Content-Length': '203', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'} 
+   Body: {
+  "code": 200,
+  "data": {
+    "error": "'CollectionInfo' object has no attribute 'vectors_count'",
+    "indexed_resources": [
+      3,
+      4
+    ],
+    "project_id": 5
+  },
+  "message": "success"
+}
+
+✅ 通过 | 获取知识库信息
+   消息: 知识库信息获取成功
+   详情: {
+  "collection_name": null,
+  "vector_count": null,
+  "indexed_resources": [
+    3,
+    4
+  ]
+}
+
+
+================================================================================
+  6. 知识库搜索接口测试
+================================================================================
+
+
+搜索: 人工智能
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/knowledge-base/5/search
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "query": "人工智能",
+  "top_k": 3
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:42 GMT', 'Content-Type': 'application/json', 'Content-Length': '5921', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "results": [
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.59150386,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2. 深度学习（Deep Learning）\n深度学习是机器学习的一个分支，利用多层神经网络模拟人脑的学习过程。在图像识别、语音识别、自然语言处理等领域取得了突破性进展。\n\n3. 自然语言处理 （NLP）\n自然语言处理研究如何让计算机理解和生成人类语言，包括文本分类、情感分析、机器翻译、对话系统等应用。\n\n三、应用领域\n- 医疗诊断：AI辅助医生进行疾病诊断和治疗方案制定\n- 金融科技：智能风控、量化交易、客户服务\n- 智能制造：工业机器人、预测性维护、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问 答、情感分析、个性化推荐"
+      },
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.55498827,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      },
+      {
+        "metadata": {
+          "file_size": 1020,
+          "filename": "机器学习实践.md",
+          "mime_type": "text/markdown",
+          "project_id": 5,
+          "resource_id": 4
+        },
+        "resource_id": 4,
+        "score": 0.38028836,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n### 无监督学习模型\n- K-means聚类：将数据分组\n- PCA降维：减少特征维度\n- 异常检测：识别异常数据点\n\n## 3. 模型训练\n- 选择合适的损失函数\n- 设置学习率和优化器\n- 使用交叉验证评估模型\n- 调整超参数优化性能\n\n## 4. 模型评估\n- 分类指标：准确率、精确率、召回率、F1分数\n- 回归指标：MAE、MSE、RMSE、R²\n- 混淆矩阵分析\n- ROC曲线和AUC\n\n## 5. 模型部署\n- 模型保存和加载\n- API 接口设计\n- 性能监控\n- 持续优化"
+      }
+    ]
+  },
+  "message": "success"
+}
+
+找到 3 个结果
+✅ 通过 | 知识库搜索 - '人工智能'
+   消息: 搜索成功，找到3个结果
+   详情: {
+  "results_count": 3,
+  "top_score": 0.59150386
+}
+
+
+搜索: 机器学习的应用
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/knowledge-base/5/search
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "query": "机器学习的应用",
+  "top_k": 3
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:42 GMT', 'Content-Type': 'application/json', 'Content-Length': '5919', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "results": [
+      {
+        "metadata": {
+          "file_size": 1020,
+          "filename": "机器学习实践.md",
+          "mime_type": "text/markdown",
+          "project_id": 5,
+          "resource_id": 4
+        },
+        "resource_id": 4,
+        "score": 0.5578596,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n### 无监督学习模型\n- K-means聚类：将数据分组\n- PCA降维：减少特征维度\n- 异常检测：识别异常数据点\n\n## 3. 模型训练\n- 选择合适的损失函数\n- 设置学习率和优化器\n- 使用交叉验证评估模型\n- 调整超参数优化性能\n\n## 4. 模型评估\n- 分类指标：准确率、精确率、召回率、F1分数\n- 回归指标：MAE、MSE、RMSE、R²\n- 混淆矩阵分析\n- ROC曲线和AUC\n\n## 5. 模型部署\n- 模型保存和加载\n- API 接口设计\n- 性能监控\n- 持续优化"
+      },
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.46521586,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2. 深度学习（Deep Learning）\n深度学习是机器学习的一个分支，利用多层神经网络模拟人脑的学习过程。在图像识别、语音识别、自然语言处理等领域取得了突破性进展。\n\n3. 自然语言处理 （NLP）\n自然语言处理研究如何让计算机理解和生成人类语言，包括文本分类、情感分析、机器翻译、对话系统等应用。\n\n三、应用领域\n- 医疗诊断：AI辅助医生进行疾病诊断和治疗方案制定\n- 金融科技：智能风控、量化交易、客户服务\n- 智能制造：工业机器人、预测性维护、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问 答、情感分析、个性化推荐"
+      },
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.4366002,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      }
+    ]
+  },
+  "message": "success"
+}
+
+找到 3 个结果
+✅ 通过 | 知识库搜索 - '机器学习的应用'
+   消息: 搜索成功，找到3个结果
+   详情: {
+  "results_count": 3,
+  "top_score": 0.5578596
+}
+
+
+搜索: 深度学习技术
+📤 请求:
+   POST http://127.0.0.1:5000/api/ai/knowledge-base/5/search
+   Headers: {
+  "Authorization": "Bearer dev-admin-token-2026-xingyun",
+  "Content-Type": "application/json"
+}
+   Body: {
+  "query": "深度学习技术",
+  "top_k": 3
+}
+
+📥 响应:
+   Status: 200
+   Headers: {'Server': 'Werkzeug/3.0.1 Python/3.12.3', 'Date': 'Thu, 22 Jan 2026 13:42:42 GMT', 'Content-Type': 'application/json', 'Content-Length': '5921', 'Access-Control-Allow-Origin': '*', 'Connection': 'close'}
+   Body: {
+  "code": 200,
+  "data": {
+    "results": [
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.51636606,
+        "text": "人工智能（Artificial Intelligence, AI）技术发展报告\n\n一、人工智能概述\n人工智能是计算机科学的一个重要分支，它致力于研究和开发能够模拟、延伸和扩展人的智能的理论、方法、技术及应用系统。\n\n二、核心技术\n1. 机器学习（Machine Learning）\n机器学习是AI的核心技术之一，通过算法让计算机从数据中学习规律和模式。主 要包括监督学习、无监督学习和强化学习。\n\n2. 深度学习（Deep Learning）\n深度学习是机器学习的一个分支，利用多层神经网络模拟人脑的学习过程。在图像识别、语音识别、自然语言处理等领域取得了突破性进展。\n\n3. 自然语言处理 （NLP）\n自然语言处理研究如何让计算机理解和生成人类语言，包括文本分类、情感分析、机器翻译、对话系统等应用。\n\n三、应用领域\n- 医疗诊断：AI辅助医生进行疾病诊断和治疗方案制定\n- 金融科技：智能风控、量化交易、客户服务\n- 智能制造：工业机器人、预测性维护、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问 答、情感分析、个性化推荐"
+      },
+      {
+        "metadata": {
+          "file_size": 1020,
+          "filename": "机器学习实践.md",
+          "mime_type": "text/markdown",
+          "project_id": 5,
+          "resource_id": 4
+        },
+        "resource_id": 4,
+        "score": 0.45538446,
+        "text": "# 机器学习实践指南\n\n## 1. 数据准备\n- 数据收集：从各种来源获取高质量数据\n- 数据清洗：处 理缺失值、异常值和重复数据\n- 特征工程：选择和构建有效的特征\n\n## 2. 模型选择\n### 监督学习模型\n- 线性回归：用于预测连续值\n- 逻辑回归：用于二分类问题\n- 决策树：易于理解和解释\n- 随机森林：集成多个决策树\n- 支持向量机：适合小样本问题\n- 神经网络：处理复杂非线性问题\n\n### 无监督学习模型\n- K-means聚类：将数据分组\n- PCA降维：减少特征维度\n- 异常检测：识别异常数据点\n\n## 3. 模型训练\n- 选择合适的损失函数\n- 设置学习率和优化器\n- 使用交叉验证评估模型\n- 调整超参数优化性能\n\n## 4. 模型评估\n- 分类指标：准确率、精确率、召回率、F1分数\n- 回归指标：MAE、MSE、RMSE、R²\n- 混淆矩阵分析\n- ROC曲线和AUC\n\n## 5. 模型部署\n- 模型保存和加载\n- API 接口设计\n- 性能监控\n- 持续优化"
+      },
+      {
+        "metadata": {
+          "file_size": 1409,
+          "filename": "AI技术介绍.txt",
+          "mime_type": "text/plain",
+          "project_id": 5,
+          "resource_id": 3
+        },
+        "resource_id": 3,
+        "score": 0.43521428,
+        "text": "、质量检测\n- 自动驾驶：环境感知、路径规划、决策控制\n- 智能客服：智能问答、情感分析、个性 化推荐\n\n四、未来展望\n随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用。同时，AI伦理、数据安全等问题也需要得到重视和解决。"
+      }
+    ]
+  },
+  "message": "success"
+}
+
+找到 3 个结果
+✅ 通过 | 知识库搜索 - '深度学习技术'
+   消息: 搜索成功，找到3个结果
+   详情: {
+  "results_count": 3,
+  "top_score": 0.51636606
+}
+
+
+================================================================================
+  测试报告总结
+================================================================================
+
+总测试数: 12
+通过: 12 ✅
+失败: 0 ❌
+通过率: 100.0%

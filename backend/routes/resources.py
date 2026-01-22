@@ -2,8 +2,8 @@ import os
 import mimetypes
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
+from auth_decorator import jwt_or_admin_required, get_current_user_id
 from models import db
 from models.project import Project
 from models.resource import ProjectResource
@@ -43,12 +43,12 @@ def get_project_upload_path(project_id):
 
 
 @resources_bp.route('/<int:project_id>/resources', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def list_resources(project_id):
     """
     Get all resources for a specific project
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     
     # Verify project ownership
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()
@@ -67,7 +67,7 @@ def list_resources(project_id):
 
 
 @resources_bp.route('/<int:project_id>/resources', methods=['POST'])
-@jwt_required()
+@jwt_or_admin_required
 def upload_resource(project_id):
     """
     Upload a file to a project
@@ -75,7 +75,7 @@ def upload_resource(project_id):
     Form data:
         file: The file to upload
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     
     # Verify project ownership
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()
@@ -192,12 +192,12 @@ def upload_resource(project_id):
 
 
 @resources_bp.route('/<int:project_id>/resources/<int:resource_id>', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def get_resource(project_id, resource_id):
     """
     Get a specific resource
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     
     # Verify project ownership
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()
@@ -216,12 +216,12 @@ def get_resource(project_id, resource_id):
 
 
 @resources_bp.route('/<int:project_id>/resources/<int:resource_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_or_admin_required
 def delete_resource(project_id, resource_id):
     """
     Delete a resource file
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     
     # Verify project ownership
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()

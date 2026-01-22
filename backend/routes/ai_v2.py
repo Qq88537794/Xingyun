@@ -7,8 +7,8 @@ import logging
 import json
 import os
 from flask import Blueprint, request, jsonify, Response, stream_with_context
-from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from auth_decorator import jwt_or_admin_required, get_current_user_id
 from ai.schema import AIRequest, AIResponse, OperationType
 from ai.rag.ai_service import get_ai_service
 from ai.rag.knowledge_base import get_kb_service
@@ -21,7 +21,7 @@ ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
 # ============== 统一问答接口 ==============
 
 @ai_bp.route('/chat', methods=['POST'])
-@jwt_required()
+@jwt_or_admin_required
 def chat():
     """
     统一问答接口
@@ -140,7 +140,7 @@ def chat():
 
 
 @ai_bp.route('/chat/history', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def get_chat_history():
     """
     获取聊天历史
@@ -183,7 +183,7 @@ def get_chat_history():
 
 
 @ai_bp.route('/chat/sessions/<session_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_or_admin_required
 def delete_chat_session(session_id):
     """删除聊天会话"""
     try:
@@ -208,7 +208,7 @@ def delete_chat_session(session_id):
 # 这些接口仅用于调试和手动管理
 
 @ai_bp.route('/knowledge-base/<int:project_id>/info', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def get_kb_info(project_id):
     """
     获取项目知识库信息
@@ -234,7 +234,7 @@ def get_kb_info(project_id):
 
 
 @ai_bp.route('/knowledge-base/<int:project_id>/search', methods=['POST'])
-@jwt_required()
+@jwt_or_admin_required
 def search_kb(project_id):
     """
     在知识库中搜索（仅用于调试/测试）
@@ -288,7 +288,7 @@ def search_kb(project_id):
 # ============== 文件操作类型说明接口 ==============
 
 @ai_bp.route('/operations', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def list_operations():
     """
     列出所有支持的文件操作类型

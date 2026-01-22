@@ -1,14 +1,14 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from models import db
 from models.project import Project
+from auth_decorator import jwt_or_admin_required, get_current_user_id
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/api/projects')
 
 
 @projects_bp.route('', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def list_projects():
     """
     Get all projects for the current user
@@ -16,7 +16,7 @@ def list_projects():
     Query params:
         include_deleted: bool (default: false) - Include soft-deleted projects
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     
     query = Project.query.filter_by(user_id=user_id)
@@ -33,7 +33,7 @@ def list_projects():
 
 
 @projects_bp.route('', methods=['POST'])
-@jwt_required()
+@jwt_or_admin_required
 def create_project():
     """
     Create a new project
@@ -44,7 +44,7 @@ def create_project():
         "description": "string" (optional)
     }
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     data = request.get_json()
     
     if not data:
@@ -81,7 +81,7 @@ def create_project():
 
 
 @projects_bp.route('/<int:project_id>', methods=['GET'])
-@jwt_required()
+@jwt_or_admin_required
 def get_project(project_id):
     """
     Get a specific project by ID
@@ -89,7 +89,7 @@ def get_project(project_id):
     Query params:
         include_resources: bool (default: false) - Include project resources
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     include_resources = request.args.get('include_resources', 'false').lower() == 'true'
     
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()
@@ -103,7 +103,7 @@ def get_project(project_id):
 
 
 @projects_bp.route('/<int:project_id>', methods=['PUT'])
-@jwt_required()
+@jwt_or_admin_required
 def update_project(project_id):
     """
     Update a project
@@ -115,7 +115,7 @@ def update_project(project_id):
         "status": "active" | "archived" (optional)
     }
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     data = request.get_json()
     
     if not data:
@@ -160,12 +160,12 @@ def update_project(project_id):
 
 
 @projects_bp.route('/<int:project_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_or_admin_required
 def delete_project(project_id):
     """
     Soft delete a project
     """
-    user_id = int(get_jwt_identity())
+    user_id = get_current_user_id()
     
     project = Project.query.filter_by(id=project_id, user_id=user_id, is_deleted=False).first()
     
