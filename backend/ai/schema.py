@@ -8,6 +8,9 @@ from typing import List, Dict, Any, Optional
 from enum import Enum
 from datetime import datetime
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OperationType(Enum):
@@ -23,6 +26,7 @@ class OperationType(Enum):
     REPLACE = "replace"                          # 全量替换（Agent模式）
     DELETE_TEXT = "delete_text"                  # 删除文本
     FORMAT_TEXT = "format_text"                  # 格式化文本
+    EXECUTE_CODE = "execute_code"                # 执行Python代码编辑文本
 
 
 @dataclass
@@ -218,16 +222,83 @@ SYSTEM_PROMPT_TEMPLATE = """你是行云智能文档工作站的AI助手，专�
 - `grammar_check`: 语法检查并提供修正
 - `insert_text`: 在指定位置插入文本
 - `replace_text`: 替换选中的文本
+- `execute_code`: **推荐用于文本编辑** - 生成Python代码来精确处理文本
+
+### 文本编辑任务 - 使用代码处理（强制）
+对于删除字符、替换文字、格式转换等精确编辑任务，**必须**使用 `execute_code` 类型：
+
+1. 在 `operation.content` 中编写简洁的Python代码（**纯代码，不要markdown代码块标记**）
+2. 代码中使用变量 `text` 表示原始文档内容
+3. 代码必须返回修改后的文本（最后一行为表达式或赋值给text）
+4. 可使用: `text.replace()`, `text.strip()`, `re.sub()`, `text.upper()`, `text.lower()` 等
+5. **无需且禁止 `import re`**，`re` 模块已预置可直接使用
+
+代码编辑示例：
+- 删除字符Z: `text.replace('Z', '')`
+- 替换X为Q: `text.replace('X', 'Q')`
+- 删除数字: `import re; re.sub(r'\\d+', '', text)`
+- 转大写: `text.upper()`
+- 批量替换: `text.replace('苹果', 'Apple').replace('香蕉', 'Banana')`
+- 删除URL: `re.sub(r'https?://[^\\s]+', '', text)`
+- 压缩空格: `re.sub(r'\\s+', ' ', text)`
+- 添加行号: `"\n".join([f"{i+1}. {line}" for i, line in enumerate(text.splitlines())])`
+ - 添加行号(单行版): `lines=text.splitlines(); "\\n".join([f"{i+1}. {line}" for i, line in enumerate(lines)])`
+- 删除空行(单行版): `lines=[l for l in text.splitlines() if l.strip()!='']; "\\n".join(lines)`
+- 行去重(单行版): `lines=text.splitlines(); out=[]; [out.append(l) for l in lines if l not in out]; "\\n".join(out)`
+
+**重要约束：**
+- 只允许输出**一个JSON对象**，不要任何额外文字、解释、代码块、前后缀
+- 对于文本编辑任务，operation.type **只能是** `execute_code`
+- operation.content **只能是代码**，不能是说明文字
+- message 字段**只能是2-8字短语**（例如："删除空格"、"替换X为Q"）
+- 禁止输出markdown格式（不要```json或```）
+- JSON中如需使用反斜杠，请双写（例如 `\\s+`），保证是**合法JSON**
+- 代码必须**单行**，多步操作使用分号 `;` 串联，禁止多行代码
+- 处理多行时，使用 `text.splitlines()` + `"\\n".join(...)`，禁止写 `"\n"`（会被解析成真实换行）
+- 如果必须写换行字符，请使用 `"\\\\n"`（JSON里需要双重转义）
 
 ### 示例响应
 
 用户请求生成大纲时：
 ```json
 {
-    "message": "我已为您生成了关于'人工智能'的文档大纲，包含5个主要章节。您可以根据需要进行调整。",
+    "message": "已生成文档大纲",
     "operation": {
         "type": "generate_outline",
         "content": "1. 引言\\n1.1 背景介绍\\n..."
+    }
+}
+```
+
+用户请求编辑文本时（使用代码）：
+```json
+{
+    "message": "删除所有Z",
+    "operation": {
+        "type": "execute_code",
+        "content": "text.replace('Z', '')"
+    }
+}
+```
+
+用户请求删除数字：
+```json
+{
+    "message": "删除数字",
+    "operation": {
+        "type": "execute_code",
+        "content": "re.sub(r'\\\\d+', '', text)"
+    }
+}
+```
+
+用户请求删除URL：
+```json
+{
+    "message": "删除URL",
+    "operation": {
+        "type": "execute_code",
+        "content": "re.sub(r'https?://[^\\\\s]+', '', text)"
     }
 }
 ```
@@ -313,19 +384,59 @@ def parse_ai_response(raw_response: str) -> tuple:
     Returns:
         (message, operation_type, operation_content)
     """
+    cleaned = raw_response.strip()
+
     try:
-        # 尝试提取JSON
         import re
-        json_match = re.search(r'\{[\s\S]*\}', raw_response)
+        
+        # 移除可能的markdown代码块标记
+        if cleaned.startswith('```'):
+            # 找到第一个{和最后一个}
+            first_brace = cleaned.find('{')
+            last_brace = cleaned.rfind('}')
+            if first_brace != -1 and last_brace != -1:
+                cleaned = cleaned[first_brace:last_brace+1]
+        
+        # 尝试提取JSON
+        json_match = re.search(r'\{[\s\S]*\}', cleaned)
         if json_match:
             data = json.loads(json_match.group())
             message = data.get('message', raw_response)
             operation = data.get('operation', {})
             op_type = operation.get('type', 'none')
             op_content = operation.get('content', '')
+            
+            # 清理execute_code类型的content（移除可能的代码块标记）
+            if op_type == 'execute_code' and op_content:
+                op_content = op_content.strip()
+                # 移除```python 或 ``` 包裹
+                if op_content.startswith('```'):
+                    lines = op_content.split('\n')
+                    if lines[0].startswith('```'):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == '```':
+                        lines = lines[:-1]
+                    op_content = '\n'.join(lines).strip()
+            
             return message, op_type, op_content
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON解析失败: {e}, 原始响应: {raw_response[:200]}")
+    except Exception as e:
+        logger.error(f"响应解析异常: {e}")
+    
+    # JSON解析失败，尝试用正则兜底解析
+    try:
+        import re
+        message_match = re.search(r'"message"\s*:\s*"(.*?)"', cleaned, re.S)
+        type_match = re.search(r'"type"\s*:\s*"(.*?)"', cleaned, re.S)
+        content_match = re.search(r'"content"\s*:\s*"(.*?)"', cleaned, re.S)
+        if message_match and type_match:
+            message = message_match.group(1).strip()
+            op_type = type_match.group(1).strip()
+            op_content = content_match.group(1) if content_match else ''
+            return message, op_type, op_content
+    except Exception as e:
+        logger.error(f"兜底解析异常: {e}")
     
     # 解析失败，返回原始内容
     return raw_response, 'none', ''
