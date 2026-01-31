@@ -6,10 +6,13 @@ __pycache__/
 *.pyd
 
 # 环境变量
-.venv
 .env
 .env.local
+
+
+# 虚拟环境
 backend/venv
+.venv
 
 # IDE
 .vscode/
