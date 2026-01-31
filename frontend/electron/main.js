@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const fontList = require('font-list')
 
 let mainWindow
 
@@ -112,4 +113,16 @@ ipcMain.handle('file:write', async (event, filePath, content) => {
 // IPC处理器 - 应用信息
 ipcMain.handle('app:getPath', async (event, name) => {
   return app.getPath(name)
+})
+
+// IPC处理器 - 系统字体
+ipcMain.handle('system:getFonts', async () => {
+  try {
+    const fonts = await fontList.getFonts({ disableQuoting: true })
+    // fontList 有时候返回的是带引号的，有时候是不带的，这里先尽量去引号
+    return fonts.map(f => f.replace(/^"|"$/g, ''))
+  } catch (error) {
+    console.error('Get fonts error:', error)
+    return []
+  }
 })

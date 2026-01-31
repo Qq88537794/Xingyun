@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 应用路径
   getAppPath: (name) => ipcRenderer.invoke('app:getPath', name),
 
+  // 系统信息
+  getSystemFonts: () => ipcRenderer.invoke('system:getFonts'),
+
   // 平台信息
   platform: process.platform
 })
