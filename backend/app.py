@@ -1,8 +1,15 @@
 import os
+import sys
 from datetime import timedelta
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+
+# 将 AI-test 目录添加到 Python 路径，以便导入 ai 模块
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+ai_test_dir = os.path.join(backend_dir, 'AI-test')
+if ai_test_dir not in sys.path:
+    sys.path.insert(0, ai_test_dir)
 
 from config import Config
 from models import db

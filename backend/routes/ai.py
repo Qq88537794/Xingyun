@@ -154,6 +154,27 @@ def chat():
             # 非流式响应
             response = llm.chat(messages)
             
+            # 调试：打印LLM响应
+            logger.info(f"LLM响应类型: {type(response)}")
+            logger.info(f"LLM响应对象: {response}")
+            logger.info(f"LLM响应content类型: {type(response.content)}")
+            logger.info(f"LLM响应content值: {response.content}")
+            logger.info(f"LLM响应content是否为None: {response.content is None}")
+            logger.info(f"LLM响应content是否为空字符串: {response.content == ''}")
+            
+            # 检查content是否为空
+            if response.content is None:
+                logger.error("LLM返回的content为None!")
+                return jsonify({
+                    'code': 500,
+                    'message': 'LLM返回了空内容',
+                    'data': {
+                        'reply': '抱歉，AI模型返回了空内容。请检查API配置和模型状态。',
+                        'session_id': session_id,
+                        'tokens_used': response.usage.total_tokens if response.usage else 0
+                    }
+                }), 500
+            
             # 保存助手回复
             conv_context.add_message('assistant', response.content)
             

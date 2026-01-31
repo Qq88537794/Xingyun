@@ -216,10 +216,11 @@
         >
           <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
             <img 
-              v-if="authStore.user?.avatar" 
+              v-if="authStore.user?.avatar && !avatarLoadError" 
               :src="`http://localhost:5000${authStore.user.avatar}`" 
               :alt="authStore.user?.username"
               class="w-full h-full object-cover"
+              @error="handleAvatarError"
             />
             <span v-else class="text-white font-medium text-lg">
               {{ authStore.user?.username?.charAt(0).toUpperCase() }}
@@ -589,10 +590,11 @@
             <div class="relative group">
               <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer group-hover:opacity-80 transition-opacity overflow-hidden">
                 <img 
-                  v-if="authStore.user?.avatar" 
+                  v-if="authStore.user?.avatar && !avatarLoadError" 
                   :src="`http://localhost:5000${authStore.user.avatar}`" 
                   :alt="authStore.user?.username"
                   class="w-full h-full object-cover"
+                  @error="handleAvatarError"
                 />
                 <span v-else class="text-white font-bold text-4xl">
                   {{ authStore.user?.username?.charAt(0).toUpperCase() }}
@@ -781,6 +783,18 @@ const emit = defineEmits(['select-project'])
 
 const authStore = useAuthStore()
 const toast = useToast()
+
+// 头像加载错误处理
+const avatarLoadError = ref(false)
+
+const handleAvatarError = () => {
+  avatarLoadError.value = true
+}
+
+// 当用户信息变化时，重置头像错误状态
+watch(() => authStore.user?.avatar, () => {
+  avatarLoadError.value = false
+})
 
 // 个人资料编辑状态（需要在 watch 之前声明）
 const isEditingProfile = ref(false)

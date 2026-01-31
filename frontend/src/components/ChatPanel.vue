@@ -33,42 +33,51 @@
         :key="index"
         :class="['message', message.role === 'user' ? 'message-user' : 'message-assistant']"
       >
-        <div class="message-header">
-          <div class="flex items-center space-x-2">
-            <div :class="[
-              'w-6 h-6 rounded-full flex items-center justify-center text-xs',
-              message.role === 'user' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
-            ]">
-              <User v-if="message.role === 'user'" :size="14" />
-              <Bot v-else :size="14" />
+        <!-- 加载状态消息 -->
+        <div v-if="message.isLoading" class="flex items-center space-x-2">
+          <Loader2 :size="16" class="animate-spin text-purple-500" />
+          <span class="text-sm text-gray-500">AI 正在思考...</span>
+        </div>
+        
+        <!-- 普通消息 -->
+        <template v-else>
+          <div class="message-header">
+            <div class="flex items-center space-x-2">
+              <div :class="[
+                'w-6 h-6 rounded-full flex items-center justify-center text-xs',
+                message.role === 'user' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
+              ]">
+                <User v-if="message.role === 'user'" :size="14" />
+                <Bot v-else :size="14" />
+              </div>
+              <span class="text-xs font-medium">
+                {{ message.role === 'user' ? '你' : 'AI 助手' }}
+              </span>
             </div>
-            <span class="text-xs font-medium">
-              {{ message.role === 'user' ? '你' : 'AI 助手' }}
+            <span class="text-xs text-gray-400">
+              {{ formatTime(message.timestamp) }}
             </span>
           </div>
-          <span class="text-xs text-gray-400">
-            {{ formatTime(message.timestamp) }}
-          </span>
-        </div>
-        <div class="message-content" v-html="renderMessage(message.content)"></div>
-        
-        <!-- AI 消息操作按钮 -->
-        <div v-if="message.role === 'assistant'" class="flex items-center space-x-2 mt-2 pt-2 border-t border-gray-100">
-          <button 
-            @click="handleInsertToDoc(message.content)"
-            class="text-xs text-gray-500 hover:text-blue-600 flex items-center space-x-1"
-          >
-            <FileInput :size="12" />
-            <span>插入文档</span>
-          </button>
-          <button 
-            @click="handleCopy(message.content)"
-            class="text-xs text-gray-500 hover:text-blue-600 flex items-center space-x-1"
-          >
-            <Copy :size="12" />
-            <span>复制</span>
-          </button>
-        </div>
+          <div class="message-content" v-html="renderMessage(message.content)"></div>
+          
+          <!-- AI 消息操作按钮 -->
+          <div v-if="message.role === 'assistant' && !message.isLoading" class="flex items-center space-x-2 mt-2 pt-2 border-t border-gray-100">
+            <button 
+              @click="handleInsertToDoc(message.content)"
+              class="text-xs text-gray-500 hover:text-blue-600 flex items-center space-x-1"
+            >
+              <FileInput :size="12" />
+              <span>插入文档</span>
+            </button>
+            <button 
+              @click="handleCopy(message.content)"
+              class="text-xs text-gray-500 hover:text-blue-600 flex items-center space-x-1"
+            >
+              <Copy :size="12" />
+              <span>复制</span>
+            </button>
+          </div>
+        </template>
       </div>
       
       <!-- 加载中状态 -->
@@ -195,13 +204,39 @@ const formatTime = (timestamp) => {
 
 // 简单的 Markdown 渲染
 const renderMessage = (content) => {
-  if (!content) return ''
+  // 处理各种空值情况
+  if (content === null || content === undefined) {
+    console.warn('renderMessage收到null/undefined内容')
+    return '<span class="text-gray-400 italic">（空内容）</span>'
+  }
   
-  return content
+  // 转换为字符串
+  const text = String(content)
+  
+  // 如果是空字符串
+  if (text.trim() === '') {
+    console.warn('renderMessage收到空字符串')
+    return '<span class="text-gray-400 italic">（空内容）</span>'
+  }
+  
+  // 转义HTML特殊字符，防止XSS
+  const escapeHtml = (str) => {
+    const div = document.createElement('div')
+    div.textContent = str
+    return div.innerHTML
+  }
+  
+  // 先转义，再处理Markdown
+  let html = escapeHtml(text)
+  
+  // 处理Markdown格式
+  html = html
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
     .replace(/\n/g, '<br>')
+  
+  return html
 }
 
 const handleInsertToDoc = (content) => {

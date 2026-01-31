@@ -203,26 +203,12 @@ class AIService:
                 operation_type = OperationType.NONE
             
             if operation_type != OperationType.NONE:
-                # 如果是execute_code类型，执行代码并替换content
-                if operation_type == OperationType.EXECUTE_CODE and request.document_content:
-                    try:
-                        executed_content = self._execute_text_code(op_content, request.document_content)
-                        op_content = executed_content
-                        # 改为replace_text类型返回给前端
-                        operation_type = OperationType.REPLACE_TEXT
-                    except Exception as e:
-                        logger.error(f"代码执行失败: {e}")
-                        message = f"{message}\n\n⚠️ 代码执行失败: {str(e)}"
-                        operation_type = OperationType.NONE
-                        op_content = ""
-                
-                if operation_type != OperationType.NONE:
-                    operations.append(FileOperation(
-                        operation_type=operation_type,
-                        target_file=request.document_id,
-                        content=op_content,
-                        position=request.selection_range
-                    ))
+                operations.append(FileOperation(
+                    operation_type=operation_type,
+                    target_file=request.document_id,
+                    content=op_content,
+                    position=request.selection_range
+                ))
         
         return AIResponse(
             message=message,
@@ -595,88 +581,6 @@ class AIService:
     def clear_session(self, session_id: str):
         """清空会话"""
         self._context_manager.delete_session(session_id)
-    
-    def _execute_text_code(self, code: str, text: str) -> str:
-        """
-        安全地执行文本处理代码
-        
-        Args:
-            code: Python代码字符串
-            text: 原始文本内容
-        
-        Returns:
-            处理后的文本
-        """
-        import re
-        
-        # 预清理：移除显式的import re，避免不必要的导入失败
-        cleaned_code = code.strip()
-        cleaned_code = cleaned_code.replace('import re\n', '').replace('import re;', '')
-        # 修复常见转义问题（JSON解码后出现的换行字符串）
-        cleaned_code = cleaned_code.replace('"\r\n"', '"\\n"').replace("'\r\n'", "'\\n'")
-        cleaned_code = cleaned_code.replace('"\n"', '"\\n"').replace("'\n'", "'\\n'")
-        # 清理行尾反斜杠导致的续行错误
-        cleaned_code = cleaned_code.replace('\\\r\n', '').replace('\\\n', '')
-
-        # 创建受限的执行环境
-        def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if name == 're':
-                return re
-            raise ImportError(f"禁止导入模块: {name}")
-
-        safe_globals = {
-            '__builtins__': {
-                'len': len,
-                'str': str,
-                'int': int,
-                'float': float,
-                'bool': bool,
-                'list': list,
-                'dict': dict,
-                'tuple': tuple,
-                'set': set,
-                'range': range,
-                'enumerate': enumerate,
-                'zip': zip,
-                'map': map,
-                'filter': filter,
-                'sorted': sorted,
-                'sum': sum,
-                'min': min,
-                'max': max,
-                'abs': abs,
-                'round': round,
-                '__import__': _safe_import,
-            },
-            're': re,
-            'text': text
-        }
-        
-        safe_locals = {}
-        
-        try:
-            # 执行代码
-            exec(cleaned_code, safe_globals, safe_locals)
-            
-            # 获取结果（优先从locals中获取text，或使用最后一个表达式）
-            if 'text' in safe_locals:
-                result = safe_locals['text']
-            elif safe_globals.get('text') != text:  # text被修改了
-                result = safe_globals['text']
-            else:
-                # 尝试eval最后一行作为表达式
-                lines = cleaned_code.strip().split('\n')
-                last_line = lines[-1].strip()
-                if not last_line.startswith(('import ', 'from ')):
-                    result = eval(last_line, safe_globals, safe_locals)
-                else:
-                    result = text
-            
-            return str(result)
-        
-        except Exception as e:
-            logger.error(f"代码执行错误: {e}\n代码: {code}")
-            raise Exception(f"代码执行失败: {str(e)}")
 
 
 # 全局AI服务实例

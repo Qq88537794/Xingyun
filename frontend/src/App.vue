@@ -131,6 +131,7 @@ import { useAuthStore } from './stores/auth'
 import { useWebSocketService } from './services/websocket'
 import { useToast } from './composables/useToast'
 import { getResources, uploadResourceFromPath, deleteResource } from './services/resources'
+import api from './services/api'
 
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
@@ -402,6 +403,151 @@ const fetchMaterials = async () => {
   }
 }
 
+// 获取操作名称
+const getOperationName = (operationType) => {
+  const names = {
+    'generate_outline': '生成的大纲',
+    'expand_content': '扩展的内容',
+    'summarize': '摘要',
+    'style_transfer': '风格转换后的内容',
+    'grammar_check': '语法检查结果',
+    'insert_text': '插入的内容',
+    'replace_text': '替换后的内容',
+    'replace': '替换后的内容',
+    'delete_text': '删除操作',
+    'format_text': '格式化后的内容',
+    'none': '无操作'
+  }
+  return names[operationType] || '操作结果'
+}
+
+// 执行文档操作
+const executeDocumentOperation = (operation) => {
+  if (!editor.value) {
+    console.warn('编辑器未初始化，无法执行操作')
+    return
+  }
+  
+  const { operation_type, content, position } = operation
+  
+  // 如果操作类型是none或没有内容，跳过
+  if (operation_type === 'none' || !content) {
+    return
+  }
+  
+  try {
+    switch (operation_type) {
+      case 'replace_text':
+      case 'REPLACE_TEXT':
+        // 替换选中的文本
+        if (hasSelection.value && content) {
+          const { from, to } = editor.value.state.selection
+          editor.value.chain()
+            .focus()
+            .setTextSelection({ from, to })
+            .deleteSelection()
+            .insertContent(content)
+            .run()
+          toast.success('已替换选中文本')
+        } else if (position && content) {
+          // 根据position替换
+          const start = position.start || 0
+          const end = position.end || start
+          editor.value.chain()
+            .focus()
+            .setTextSelection({ from: start, to: end })
+            .deleteSelection()
+            .insertContent(content)
+            .run()
+          toast.success('已替换指定文本')
+        }
+        break
+        
+      case 'insert_text':
+      case 'INSERT_TEXT':
+        // 插入文本
+        if (content) {
+          if (position) {
+            // 在指定位置插入
+            const pos = position.start || editor.value.state.selection.from
+            editor.value.chain()
+              .focus()
+              .setTextSelection({ from: pos, to: pos })
+              .insertContent(content)
+              .run()
+          } else {
+            // 在当前光标位置插入
+            editor.value.chain()
+              .focus()
+              .insertContent(content)
+              .run()
+          }
+          toast.success('已插入内容')
+        }
+        break
+        
+      case 'delete_text':
+      case 'DELETE_TEXT':
+        // 删除文本
+        if (hasSelection.value) {
+          editor.value.chain()
+            .focus()
+            .deleteSelection()
+            .run()
+          toast.success('已删除选中文本')
+        } else if (position) {
+          const start = position.start || 0
+          const end = position.end || start
+          editor.value.chain()
+            .focus()
+            .setTextSelection({ from: start, to: end })
+            .deleteSelection()
+            .run()
+          toast.success('已删除指定文本')
+        }
+        break
+        
+      case 'replace':
+      case 'REPLACE':
+        // 全量替换
+        if (content) {
+          editor.value.chain()
+            .focus()
+            .setContent(content)
+            .run()
+          toast.success('已更新文档内容')
+        }
+        break
+        
+      case 'format_text':
+      case 'FORMAT_TEXT':
+        // 格式化文本
+        if (hasSelection.value && content) {
+          const { from, to } = editor.value.state.selection
+          editor.value.chain()
+            .focus()
+            .setTextSelection({ from, to })
+            .deleteSelection()
+            .insertContent(content)
+            .run()
+          toast.success('已格式化文本')
+        }
+        break
+        
+      case 'none':
+      case 'NONE':
+        // 无操作
+        break
+        
+      default:
+        console.log('未处理的操作类型:', operation_type, operation)
+    }
+  } catch (error) {
+    console.error('执行文档操作失败:', error, operation)
+    toast.error(`执行操作失败: ${error.message}`)
+  }
+}
+
 // AI对话
 const handleSendMessage = async (message) => {
   chatMessages.value.push({
@@ -410,29 +556,161 @@ const handleSendMessage = async (message) => {
     timestamp: new Date().toISOString()
   })
   
-  // 发送到后端AI服务
-  if (wsService.isConnected()) {
-    wsService.send({
-      type: 'chat',
-      message,
-      context: {
-        document: editor.value?.getJSON(),
-        materials: materials.value,
-        selection: hasSelection.value ? editor.value?.state.doc.textBetween(
-          editor.value.state.selection.from,
-          editor.value.state.selection.to
-        ) : null
-      }
+  // 显示加载状态
+  const loadingMessageIndex = chatMessages.value.length
+  chatMessages.value.push({
+    role: 'assistant',
+    content: '正在思考...',
+    timestamp: new Date().toISOString(),
+    isLoading: true
+  })
+  
+  try {
+    // 获取选中的文本
+    const selectedText = hasSelection.value ? editor.value?.state.doc.textBetween(
+      editor.value.state.selection.from,
+      editor.value.state.selection.to
+    ) : null
+    
+    // 使用 HTTP API 调用后端 AI 服务
+    const response = await api.post('/ai/chat', {
+      message: message,
+      session_id: `project_${currentProjectId.value || 'default'}`,
+      // 传递文档内容，让AI能够执行操作
+      document_content: editor.value?.getText() || undefined,
+      selected_text: selectedText || undefined,
+      selection_range: hasSelection.value ? {
+        start: editor.value.state.selection.from,
+        end: editor.value.state.selection.to
+      } : undefined,
+      project_id: currentProjectId.value || undefined
     })
-  } else {
-    // 模拟AI响应（开发模式）
-    setTimeout(() => {
-      chatMessages.value.push({
-        role: 'assistant',
-        content: `收到您的消息："${message}"\n\n这是一个模拟响应。实际的 AI 功能需要连接后端服务。\n\n**提示**: 后端服务启动后，我将能够：\n- 根据您的材料生成内容\n- 优化和润色文字\n- 生成文档大纲\n- 回答关于文档的问题`,
-        timestamp: new Date().toISOString()
-      })
-    }, 1500)
+    
+    // 调试：打印完整响应数据
+    console.log('AI API 响应:', response.data)
+    console.log('响应数据结构:', {
+      code: response.data.code,
+      message: response.data.message,
+      hasData: !!response.data.data,
+      dataKeys: response.data.data ? Object.keys(response.data.data) : [],
+      dataContent: response.data.data,
+      // 支持两种字段名：message (ai_v2.py) 和 reply (ai.py)
+      messageField: response.data.data?.message,
+      replyField: response.data.data?.reply,
+      messageType: typeof response.data.data?.message,
+      replyType: typeof response.data.data?.reply
+    })
+    
+    // 移除加载消息
+    chatMessages.value.splice(loadingMessageIndex, 1)
+    
+    // 添加AI回复
+    if (response.data.code === 200 && response.data.data) {
+      // 支持两种字段名：message (ai_v2.py) 和 reply (ai.py)
+      const replyContent = response.data.data.message || response.data.data.reply
+      
+      // 检查回复内容
+      if (replyContent === null || replyContent === undefined) {
+        console.error('AI返回null或undefined:', {
+          fullResponse: response.data,
+          dataObject: response.data.data,
+          allKeys: Object.keys(response.data.data || {}),
+          messageValue: response.data.data?.message,
+          replyValue: response.data.data?.reply
+        })
+        chatMessages.value.push({
+          role: 'assistant',
+          content: `抱歉，AI返回了空内容（null/undefined）。\n\n**调试信息**:\n- 响应代码: 200\n- 数据对象存在: ${!!response.data.data}\n- 数据对象键: ${response.data.data ? Object.keys(response.data.data).join(', ') : '无'}\n- message字段值: ${response.data.data?.message}\n- reply字段值: ${response.data.data?.reply}\n\n请检查后端日志，查看LLM实际返回的内容。`,
+          timestamp: new Date().toISOString()
+        })
+      } else if (typeof replyContent !== 'string') {
+        console.error('AI返回非字符串类型:', typeof replyContent, replyContent)
+        chatMessages.value.push({
+          role: 'assistant',
+          content: `抱歉，AI返回了意外的数据类型（${typeof replyContent}）。\n\n**调试信息**:\n${JSON.stringify(replyContent, null, 2)}`,
+          timestamp: new Date().toISOString()
+        })
+      } else if (replyContent.trim() === '') {
+        console.warn('AI返回空字符串:', response.data)
+        chatMessages.value.push({
+          role: 'assistant',
+          content: '抱歉，AI返回了空内容。这可能是因为：\n1. API密钥配置问题\n2. 模型返回了空响应\n3. 网络问题\n\n请检查后端日志获取更多信息。',
+          timestamp: new Date().toISOString()
+        })
+      } else {
+        // 正常情况：有内容
+        console.log('AI回复内容:', replyContent.substring(0, 100) + '...')
+        
+        // 检查是否有操作需要执行
+        const operations = response.data.data.operations || []
+        console.log('AI返回的操作:', operations)
+        
+        // 构建显示内容
+        let displayContent = replyContent
+        
+        // 如果有操作，处理操作内容
+        if (operations && operations.length > 0) {
+          // 区分需要显示内容的操作和需要执行的操作
+          const displayOnlyOperations = ['summarize', 'generate_outline', 'expand_content', 'style_transfer', 'grammar_check']
+          
+          operations.forEach(op => {
+            if (!op.operation_type || op.operation_type === 'none') {
+              return
+            }
+            
+            // 如果是仅显示的操作，将内容添加到消息中
+            if (displayOnlyOperations.includes(op.operation_type) && op.content && op.content.trim()) {
+              const operationName = getOperationName(op.operation_type)
+              displayContent += `\n\n**${operationName}**:\n${op.content}`
+            }
+            // 如果是需要执行的操作，执行文档修改
+            else if (['replace_text', 'insert_text', 'delete_text', 'replace', 'format_text'].includes(op.operation_type)) {
+              executeDocumentOperation(op)
+            }
+          })
+        }
+        
+        chatMessages.value.push({
+          role: 'assistant',
+          content: displayContent,
+          timestamp: new Date().toISOString()
+        })
+      }
+      // 更新连接状态
+      connectionStatus.value = 'connected'
+    } else {
+      console.error('AI服务返回错误结构:', response.data)
+      throw new Error(response.data.message || 'AI服务返回错误')
+    }
+  } catch (error) {
+    // 移除加载消息
+    chatMessages.value.splice(loadingMessageIndex, 1)
+    
+    // 显示错误消息
+    console.error('AI服务错误:', error)
+    
+    let errorMessage = `抱歉，AI服务暂时不可用。\n\n`
+    
+    if (error.response?.status === 401) {
+      errorMessage += '**错误**: 未登录或登录已过期，请重新登录。'
+    } else if (error.response?.status === 500) {
+      errorMessage += `**错误**: ${error.response?.data?.message || '服务器内部错误'}\n\n请检查：\n1. 后端服务是否正常运行\n2. API密钥是否已正确配置`
+    } else if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      errorMessage += '**错误**: 无法连接到后端服务\n\n请检查：\n1. 后端服务是否已启动（http://localhost:5000）\n2. 防火墙是否阻止了连接'
+    } else {
+      errorMessage += `**错误**: ${error.response?.data?.message || error.message || '未知错误'}\n\n请检查：\n1. 后端服务是否已启动\n2. 是否已登录\n3. API密钥是否已配置`
+    }
+    
+    chatMessages.value.push({
+      role: 'assistant',
+      content: errorMessage,
+      timestamp: new Date().toISOString()
+    })
+    
+    // 根据错误类型更新连接状态
+    if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      connectionStatus.value = 'disconnected'
+    }
   }
 }
 
@@ -500,13 +778,33 @@ const handleBackToProjects = () => {
   chatMessages.value = []
 }
 
-// WebSocket连接
+// 检查后端连接状态
+const checkBackendConnection = async () => {
+  try {
+    // 尝试调用一个简单的API来检查连接
+    await api.get('/user/me')
+    connectionStatus.value = 'connected'
+  } catch (error) {
+    // 如果是401错误，说明已连接但未登录，也算连接成功
+    if (error.response?.status === 401) {
+      connectionStatus.value = 'connected'
+    } else {
+      connectionStatus.value = 'disconnected'
+    }
+  }
+}
+
+// 组件挂载
 onMounted(() => {
   authStore.restoreUser()
   
   // 总是显示项目列表（包含登录注册）
   currentView.value = 'projects'
   
+  // 检查后端连接状态
+  checkBackendConnection()
+  
+  // 保留WebSocket事件监听（用于未来可能的WebSocket功能）
   wsService.on('message', (data) => {
     if (data.type === 'chat_response') {
       chatMessages.value.push({
@@ -527,7 +825,8 @@ onMounted(() => {
   })
   
   wsService.on('disconnect', () => {
-    connectionStatus.value = 'disconnected'
+    // 只有在WebSocket连接时才更新状态
+    // HTTP API连接状态由checkBackendConnection管理
   })
 })
 
