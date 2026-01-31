@@ -1,3 +1,5 @@
+import api from './api'
+
 /**
  * 文档导出服务
  * 纯前端实现 Markdown 导出
@@ -149,13 +151,37 @@ export class ExportService {
   }
 
   /**
-   * 导出为 Word（需要后端）
-   * @placeholder 预留接口
+   * 导出为 Word（调用后端）
    */
-  static async toWord(json, wsService) {
-    // TODO: 后端实现
-    // wsService.send({ type: 'export', format: 'docx', content: json })
-    throw new Error('Word 导出需要后端支持')
+  static async toWord(json, filename = 'document.docx') {
+    try {
+      const response = await api.post('/export/docx', {
+        content: json,
+        title: filename.replace('.docx', '')
+      }, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      const url = window.URL.createObjectURL(blob)
+      
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      
+      return true
+    } catch (error) {
+           console.error('Export docx error', error);
+      throw new Error('Word 导出失败: ' + (error.response?.data?.error || error.message))
+    }
+  }
+
+
+  static downloadWord(fileBlob, filename = 'document.docx') {
   }
 
   /**

@@ -198,6 +198,14 @@ const handleExport = async (format) => {
       break
       
     case 'docx':
+      try {
+        const fileName = props.projectName ? `${props.projectName}.docx` : 'document.docx'
+        await ExportService.toWord(props.editorJson, fileName)
+        toast.success('Word 导出成功')
+      } catch (err) {
+        toast.error('导出失败: ' + err.message)
+      }
+      break
     case 'pdf':
     case 'tex':
       // 需要后端支持
