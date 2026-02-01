@@ -313,7 +313,7 @@ onMounted(async () => {
         .filter(f => !['Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3', 'Marlett', 'Symbol'].includes(f)) // 过滤符号字体
         .map(f => {
           // 尝试本地化名称
-          const cleanName = f.replace(/^"|"$/g, '')
+          const cleanName = f.replace(/^['"]|['"]$/g, '')
           const displayName = fontNameMap[cleanName] || cleanName
           return {
             label: displayName,
@@ -391,10 +391,23 @@ const currentFontLabel = computed(() => {
   // 获取当前光标或选区的字体属性
   let activeFont = props.editor.getAttributes('textStyle').fontFamily
   
+  // 如果没有直接的字体属性，尝试获取编辑器计算样式
+  // 这确保了在未设置字体（如粘贴纯文本）时显示真实渲染的字体，而不是错误的默认值
+  if (!activeFont && props.editor.view && props.editor.view.dom) {
+    try {
+      const computed = window.getComputedStyle(props.editor.view.dom).fontFamily
+      if (computed) {
+        activeFont = computed
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+  
   if (!activeFont) return '微软雅黑' // 默认显示微软雅黑
   
-  // 清理引号
-  activeFont = activeFont.replace(/^"|"$/g, '').split(',')[0].trim()
+  // 清理引号并只取第一个字体
+  activeFont = activeFont.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
   
   // 在已加载的系统字体中查找
   const knownFont = systemFonts.value.find(f => f.originalName === activeFont)
