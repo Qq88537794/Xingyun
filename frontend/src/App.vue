@@ -117,6 +117,7 @@ import TableHeader from '@tiptap/extension-table-header'
 import Underline from '@tiptap/extension-underline'
 import TextStyle from '@tiptap/extension-text-style'
 import FontFamily from '@tiptap/extension-font-family'
+import { FontSize } from './extensions/FontSize'
 
 import ProjectsView from './views/ProjectsView.vue'
 import TopBar from './components/TopBar.vue'
@@ -175,6 +176,7 @@ const editor = useEditor({
     Underline,
     TextStyle,
     FontFamily,
+    FontSize,
     Image,
     Table.configure({ resizable: true }),
     TableRow,

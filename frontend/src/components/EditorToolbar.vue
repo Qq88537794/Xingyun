@@ -73,6 +73,44 @@
         <div v-if="showFontMenu" @click="showFontMenu = false" class="fixed inset-0 z-40" style="cursor: default;"></div>
       </div>
 
+      <!-- 字号选择框 -->
+      <div class="relative w-20 mr-1">
+        <div class="flex items-center w-full bg-white border border-gray-200 hover:border-blue-400 rounded transition-colors h-8">
+            <input 
+                v-model="currentSizeInput"
+                @keydown.enter="handleSizeInputConfirm"
+                @blur="handleSizeInputConfirm"
+                class="font-size-input w-full px-1 py-1 text-xs border-none focus:outline-none text-gray-700 font-medium bg-transparent text-center"
+                title="字号"
+            />
+            <button 
+                @click="showSizeMenu = !showSizeMenu"
+                class="px-0.5 h-full flex items-center justify-center border-l border-gray-100 hover:bg-gray-50 flex-shrink-0 w-5"
+            >
+                <ChevronDown :size="12" class="text-gray-500" />
+            </button>
+        </div>
+        
+        <!-- 下拉菜单 -->
+        <div 
+          v-if="showSizeMenu"
+          class="absolute top-full left-0 mt-1 w-32 bg-white rounded shadow-xl border border-gray-200 py-1 z-50 max-h-80 overflow-y-auto font-menu-scroll"
+        >
+           <button
+             v-for="size in displayFontSizes"
+             :key="size.pt"
+             @click="setSize(size.pt)"
+             class="w-full text-left px-3 py-1 text-sm hover:bg-gray-100 flex justify-between items-center group leading-relaxed"
+             :class="{ 'bg-blue-50 text-blue-700': currentFontSizePt === size.pt }"
+           >
+             <span>{{ size.pt }}</span>
+             <span v-if="size.label" class="text-gray-400 text-xs transform scale-90 origin-right transition-colors group-hover:text-gray-500">{{ size.label }}</span>
+           </button>
+        </div>
+        
+         <div v-if="showSizeMenu" @click="showSizeMenu = false" class="fixed inset-0 z-40" style="cursor: default;"></div>
+      </div>
+
       <button 
         @click="editor.chain().focus().toggleBold().run()"
         :class="{ 'is-active': editor.isActive('bold') }"
@@ -232,7 +270,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { 
   Undo, Redo,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
@@ -443,6 +481,109 @@ const addToRecent = (fontItem) => {
   
   recentFonts.value = newList
   localStorage.setItem('recent_fonts', JSON.stringify(newList))
+}
+
+/* 字号功能相关 */
+const showSizeMenu = ref(false)
+const currentSizeInput = ref('10.5')
+
+const fontSizes = [
+  { pt: 42, label: '初号' },
+  { pt: 36, label: '小初' },
+  { pt: 26, label: '一号' },
+  { pt: 24, label: '小一' },
+  { pt: 22, label: '二号' },
+  { pt: 18, label: '小二' },
+  { pt: 16, label: '三号' },
+  { pt: 15, label: '小三' },
+  { pt: 14, label: '四号' },
+  { pt: 12, label: '小四' },
+  { pt: 10.5, label: '五号' },
+  { pt: 9, label: '小五' },
+  { pt: 7.5, label: '六号' },
+  { pt: 6.5, label: '小六' },
+  { pt: 5.5, label: '七号' },
+  { pt: 5, label: '八号' },
+]
+
+const otherSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72]
+
+const displayFontSizes = computed(() => {
+    const list = [...fontSizes]
+    otherSizes.forEach(pt => {
+        if (!list.find(item => item.pt === pt)) {
+             list.push({ pt, label: '' })
+        }
+    })
+    return list.sort((a, b) => a.pt - b.pt)
+})
+
+const currentFontSizePt = computed(() => {
+    if (!props.editor) return 10.5
+    
+    // 尝试获取 style
+    const sizeAttr = props.editor.getAttributes('textStyle').fontSize
+    if (sizeAttr) {
+        return parseFloat(sizeAttr)
+    }
+    
+    // 如果没有，尝试获取 computed style
+    // 但 computed style 返回的是 px
+    // 获取选区所在的节点
+    const { from } = props.editor.state.selection
+    // 这是一个近似值，更精确的需要 traverse DOM selection
+    // 这里简单 fallback 到 editor view dom
+    if (props.editor.view && props.editor.view.dom) {
+        try {
+            const computed = window.getComputedStyle(props.editor.view.dom).fontSize
+            if (computed && computed.endsWith('px')) {
+                // 1px approx 0.75pt
+                const px = parseFloat(computed)
+                // 转换回 pt，四舍五入到 0.5
+                return Math.round((px * 0.75) * 2) / 2
+            }
+        } catch(e) {}
+    }
+
+    return 10.5
+})
+
+watch(() => currentFontSizePt.value, (newVal) => {
+    // 避免在用户输入时覆盖
+    const inputEl = document.activeElement
+    if (!inputEl || !inputEl.classList.contains('font-size-input')) {
+         currentSizeInput.value = newVal ? newVal.toString() : '10.5'
+    }
+})
+
+const setSize = (pt) => {
+    if (!props.editor) return
+    props.editor.chain().focus().setFontSize(pt + 'pt').run()
+    showSizeMenu.value = false
+    currentSizeInput.value = pt.toString()
+}
+
+const handleSizeInputConfirm = () => {
+   let val = currentSizeInput.value.trim()
+   // 检查是否是中文名
+   const chineseSize = fontSizes.find(f => f.label === val)
+   if (chineseSize) {
+       setSize(chineseSize.pt)
+       return
+   }
+   
+   // 检查是否是数字
+   const num = parseFloat(val)
+   if (!isNaN(num) && num > 0) {
+       setSize(num)
+   } else {
+       // 无效输入，重置
+       currentSizeInput.value = currentFontSizePt.value.toString()
+   }
+   // 使输入框失去焦点
+   if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+       document.activeElement.blur()
+   }
 }
 
 const fonts = [] // 兼容保留
