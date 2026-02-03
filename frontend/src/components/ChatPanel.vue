@@ -1,9 +1,12 @@
 <template>
-  <div class="chat-panel w-80 bg-white border-l border-gray-200 flex flex-col">
+  <div class="chat-panel h-full flex flex-col">
+    <!-- Header (Optional if using Tabs in App.vue, but nice to keep context info) -->
+    <!-- 
     <div class="p-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-800">AI 助手</h2>
       <p class="text-xs text-gray-500 mt-1">与 AI 对话，优化您的文档</p>
     </div>
+    -->
     
     <!-- 快捷指令 -->
     <div class="px-3 py-2 border-b border-gray-200 bg-gray-50">

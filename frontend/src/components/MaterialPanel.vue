@@ -1,5 +1,5 @@
 <template>
-  <div class="material-panel w-64 bg-white border-r border-gray-200 flex flex-col">
+  <div class="material-panel w-full h-full bg-white flex flex-col">
     <div class="p-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-800 mb-3">参考材料</h2>
       <button @click="$emit('upload')" class="w-full btn-upload">

@@ -27,18 +27,29 @@
       <!-- 左侧边栏 - 材料管理 -->
       <Transition
         enter-active-class="transition-all duration-200 ease-out"
-        enter-from-class="w-0 opacity-0"
-        enter-to-class="w-64 opacity-100"
+        enter-from-class="!w-0 opacity-0"
+        enter-to-class="opacity-100"
         leave-active-class="transition-all duration-200 ease-in"
-        leave-from-class="w-64 opacity-100"
-        leave-to-class="w-0 opacity-0"
+        leave-from-class="opacity-100"
+        leave-to-class="!w-0 opacity-0"
       >
-        <MaterialPanel 
-          v-if="showMaterialPanel"
-          :materials="materials"
-          @upload="handleUploadMaterial"
-          @remove="handleRemoveMaterial"
-        />
+        <aside 
+            v-if="showMaterialPanel"
+            class="flex-shrink-0 flex relative border-r border-gray-200"
+            :style="{ width: leftSidebarWidth + 'px' }"
+        >
+            <MaterialPanel 
+              class="w-full h-full overflow-hidden"
+              :materials="materials"
+              @upload="handleUploadMaterial"
+              @remove="handleRemoveMaterial"
+            />
+            <!-- Resizer Handle -->
+            <div 
+                class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-400 z-50 opacity-0 hover:opacity-100 transition-opacity translate-x-1/2"
+                @mousedown.prevent="startResizeLeft"
+            ></div>
+        </aside>
       </Transition>
       
       <!-- 中间编辑区 -->
@@ -47,6 +58,9 @@
         <EditorToolbar 
           v-if="editor"
           :editor="editor"
+          :styles="docStyles"
+          :system-fonts="systemFonts"
+          @edit-style="handleEditStyle"
         />
         
         <!-- TipTap编辑器 -->
@@ -55,23 +69,71 @@
         </div>
       </div>
       
-      <!-- 右侧边栏 - AI对话 -->
+      <!-- 右侧统一侧边栏 -->
       <Transition
         enter-active-class="transition-all duration-200 ease-out"
-        enter-from-class="w-0 opacity-0"
-        enter-to-class="w-80 opacity-100"
+        enter-from-class="!w-0 opacity-0"
+        enter-to-class="opacity-100"
         leave-active-class="transition-all duration-200 ease-in"
-        leave-from-class="w-80 opacity-100"
-        leave-to-class="w-0 opacity-0"
+        leave-from-class="opacity-100"
+        leave-to-class="!w-0 opacity-0"
       >
-        <ChatPanel 
-          v-if="showChatPanel"
-          :messages="chatMessages"
-          :is-connected="connectionStatus === 'connected'"
-          :has-selection="hasSelection"
-          @send-message="handleSendMessage"
-          @insert-to-doc="handleInsertToDoc"
-        />
+        <aside 
+            v-if="showRightSidebar" 
+            class="bg-white border-l border-gray-200 flex flex-col h-full shadow-sm z-10 flex-shrink-0 relative"
+            :style="{ width: rightSidebarWidth + 'px' }"
+        >
+            <!-- Resizer Handle -->
+            <div 
+                class="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-400 z-50 opacity-0 hover:opacity-100 transition-opacity -translate-x-1/2"
+                @mousedown.prevent="startResizeRight"
+            ></div>
+
+            <!-- Tab Header -->
+            <div class="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <button 
+                  @click="activeSidebarTab = 'chat'" 
+                  class="flex-1 py-3 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors duration-200"
+                  :class="activeSidebarTab === 'chat' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'"
+                >
+                    <MessageSquare :size="16" />
+                    <span>AI 助手</span>
+                </button>
+                <button 
+                  @click="activeSidebarTab = 'style'" 
+                  class="flex-1 py-3 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors duration-200"
+                  :class="activeSidebarTab === 'style' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'"
+                >
+                    <Paintbrush :size="16" />
+                    <span>样式编辑</span>
+                </button>
+                <button @click="showRightSidebar = false" class="px-3 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors border-l border-gray-200">
+                    <X :size="16" />
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-hidden relative">
+                 <ChatPanel 
+                  v-show="activeSidebarTab === 'chat'"
+                  class="h-full w-full absolute inset-0"
+                  :messages="chatMessages"
+                  :is-connected="connectionStatus === 'connected'"
+                  :has-selection="hasSelection"
+                  @send-message="handleSendMessage"
+                  @insert-to-doc="handleInsertToDoc"
+                />
+
+                <StyleEditorPanel 
+                  v-show="activeSidebarTab === 'style'"
+                  class="h-full w-full absolute inset-0"
+                  :style-data="editingStyle"
+                  :system-fonts="systemFonts"
+                  @close="editingStyle = null; activeSidebarTab = 'chat'"
+                  @save="handleSaveStyle"
+                />
+            </div>
+        </aside>
       </Transition>
     </div>
     
@@ -110,6 +172,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
+import { X, MessageSquare, Paintbrush } from 'lucide-vue-next' // Add icons
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
@@ -118,12 +181,14 @@ import Underline from '@tiptap/extension-underline'
 import TextStyle from '@tiptap/extension-text-style'
 import FontFamily from '@tiptap/extension-font-family'
 import { FontSize } from './extensions/FontSize'
+import { Color } from './extensions/Color'
 
 import ProjectsView from './views/ProjectsView.vue'
 import TopBar from './components/TopBar.vue'
 import MaterialPanel from './components/MaterialPanel.vue'
 import EditorToolbar from './components/EditorToolbar.vue'
 import ChatPanel from './components/ChatPanel.vue'
+import StyleEditorPanel from './components/StyleEditorPanel.vue'
 import StatusBar from './components/StatusBar.vue'
 import SnapshotModal from './components/SnapshotModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -143,7 +208,35 @@ const toast = useToast()
 
 // UI状态
 const showMaterialPanel = ref(true)
-const showChatPanel = ref(true)
+const showRightSidebar = ref(true) // Unified sidebar state
+const activeSidebarTab = ref('chat') // 'chat' | 'style'
+
+const showChatPanel = computed({
+    get: () => showRightSidebar.value && activeSidebarTab.value === 'chat',
+    set: (val) => {
+        if (val) {
+            showRightSidebar.value = true
+            activeSidebarTab.value = 'chat'
+        } else {
+             // If trying to close chat, check if we should close sidebar or switch?
+             // Usually triggered by toggle, so close.
+             showRightSidebar.value = false
+        }
+    }
+})
+// Deprecated individual refs but keeping variables for compatibility if referenced
+const showStylePanel = computed({
+    get: () => showRightSidebar.value && activeSidebarTab.value === 'style',
+    set: (val) => {
+        if (val) {
+            showRightSidebar.value = true
+            activeSidebarTab.value = 'style'
+        } else {
+            showRightSidebar.value = false
+        }
+    }
+})
+
 const showSnapshotModal = ref(false)
 const showSettingsModal = ref(false)
 const materials = ref([])
@@ -154,6 +247,112 @@ const chatMessages = ref([])
 const connectionStatus = ref('disconnected')
 const lastSaved = ref(null)
 const snapshots = ref([])
+
+// Sidebar Resizing
+const leftSidebarWidth = ref(256)
+const rightSidebarWidth = ref(320)
+const isResizingLeft = ref(false)
+const isResizingRight = ref(false)
+
+const startResizeLeft = () => {
+    isResizingLeft.value = true
+    document.body.style.cursor = 'col-resize'
+    document.body.classList.add('select-none')
+}
+
+const startResizeRight = () => {
+    isResizingRight.value = true
+    document.body.style.cursor = 'col-resize'
+    document.body.classList.add('select-none')
+}
+
+const handleGlobalMouseMove = (e) => {
+    if (isResizingLeft.value) {
+        // Limit width between 200 and 600
+        const newWidth = Math.max(200, Math.min(600, e.clientX))
+        leftSidebarWidth.value = newWidth
+    }
+    if (isResizingRight.value) {
+        // Calculate width from right
+        const containerWidth = document.body.clientWidth
+        const newWidth = Math.max(240, Math.min(800, containerWidth - e.clientX))
+        rightSidebarWidth.value = newWidth
+    }
+}
+
+const handleGlobalMouseUp = () => {
+    if (isResizingLeft.value || isResizingRight.value) {
+        isResizingLeft.value = false
+        isResizingRight.value = false
+        document.body.style.cursor = ''
+        document.body.classList.remove('select-none')
+    }
+}
+
+// 样式管理
+const docStyles = ref([
+    { id: 'paragraph', label: '正文', element: 'p', style: { fontSize: 16, lineHeight: 1.6, color: '#374151', bold: false, italic: false, marginTop: 0, marginBottom: 0.75, fontFamily: 'Microsoft YaHei' } },
+    { id: 'heading1', label: '标题 1', element: 'h1', level: 1, style: { fontSize: 32, lineHeight: 1.2, color: '#111827', bold: true, italic: false, marginTop: 1, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
+    { id: 'heading2', label: '标题 2', element: 'h2', level: 2, style: { fontSize: 24, lineHeight: 1.3, color: '#1f2937', bold: true, italic: false, marginTop: 0.83, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
+    { id: 'heading3', label: '标题 3', element: 'h3', level: 3, style: { fontSize: 18.72, lineHeight: 1.4, color: '#374151', bold: true, italic: false, marginTop: 1, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
+])
+
+const systemFonts = ref([])
+const editingStyle = ref(null)
+
+const handleEditStyle = (styleItem) => {
+    editingStyle.value = JSON.parse(JSON.stringify(styleItem)) // copy
+    activeSidebarTab.value = 'style'
+    showRightSidebar.value = true
+}
+
+const handleSaveStyle = (updatedStyle) => {
+    const index = docStyles.value.findIndex(s => s.id === updatedStyle.id)
+    if (index !== -1) {
+        docStyles.value[index] = { ...docStyles.value[index], ...updatedStyle }
+        
+        // 应用样式更改到编辑器 DOM (通过注入 CSS)
+        updateEditorStyles()
+        
+        toast.success(`已更新样式: ${updatedStyle.id}`)
+    }
+    // Don't close sidebar, maybe switch back to chat or stay?
+    // User often wants to see result. Stay in style tab looks good.
+    // Or clear selection.
+    editingStyle.value = null 
+}
+
+// 简单的 CSS 注入机制
+const updateEditorStyles = () => {
+    let styleEl = document.getElementById('editor-custom-styles')
+    if (!styleEl) {
+        styleEl = document.createElement('style')
+        styleEl.id = 'editor-custom-styles'
+        document.head.appendChild(styleEl)
+    }
+    
+    let css = ''
+    docStyles.value.forEach(ds => {
+        // Selector: .ProseMirror h1, .ProseMirror p
+        let selector = `.ProseMirror ${ds.element}`
+        if (ds.id === 'paragraph') selector = '.ProseMirror p' 
+        // Note: multiple headings might map to same element if we had custom classes, but here we assume standard mapping
+        
+        css += `${selector} {
+            font-size: ${ds.style.fontSize}px;
+            line-height: ${ds.style.lineHeight};
+            color: ${ds.style.color};
+            font-weight: ${ds.style.bold ? 'bold' : 'normal'};
+            font-style: ${ds.style.italic ? 'italic' : 'normal'};
+            margin-top: ${ds.style.marginTop}em;
+            margin-bottom: ${ds.style.marginBottom}em;
+            font-family: ${ds.style.fontFamily || 'inherit'};
+        }\n`
+    })
+    
+    styleEl.textContent = css
+}
+
 
 // 用户设置
 const userSettings = ref({
@@ -177,13 +376,14 @@ const editor = useEditor({
     TextStyle,
     FontFamily,
     FontSize,
+    Color,
     Image,
     Table.configure({ resizable: true }),
     TableRow,
     TableHeader,
     TableCell,
   ],
-  content: '<p>开始编写您的文档...</p>',
+  content: '',
   editorProps: {
     attributes: {
       class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
@@ -241,19 +441,6 @@ const handleSettingsChange = (newSettings) => {
   startAutoSnapshot()
 }
 
-onMounted(() => {
-  // 恢复用户设置
-  const savedSettings = localStorage.getItem('user_settings')
-  if (savedSettings) {
-    try {
-      userSettings.value = { ...userSettings.value, ...JSON.parse(savedSettings) }
-    } catch (e) {}
-  }
-  
-  // 启动自动快照
-  startAutoSnapshot()
-})
-
 // 保存快照
 const saveSnapshot = (label = '') => {
   const json = editor.value?.getJSON()
@@ -304,7 +491,7 @@ const handleNewDocument = () => {
     if (wordCount.value > 10) {
       saveSnapshot('新建前自动保存')
     }
-    editor.value?.commands.setContent('<p>开始编写您的文档...</p>')
+    editor.value?.commands.setContent('')
     documentStore.clearDocument()
     toast.success('已创建新文档')
   }
@@ -752,7 +939,7 @@ const handleSelectProject = async (project) => {
       console.warn('恢复文档失败')
     }
   } else {
-    editor.value?.commands.setContent('<p>开始编写您的文档...</p>')
+    editor.value?.commands.setContent('')
   }
   
   // 恢复快照
@@ -801,14 +988,75 @@ const checkBackendConnection = async () => {
 }
 
 // 组件挂载
-onMounted(() => {
+onMounted(async () => {
+  // 加载系统字体
+  if (window.electronAPI && window.electronAPI.getSystemFonts) {
+     try {
+         const rawFonts = await window.electronAPI.getSystemFonts()
+         // 简单的滤镜和映射
+         const fontNameMap = {
+            'Microsoft YaHei': '微软雅黑',
+            'SimSun': '宋体',
+            'NSimSun': '新宋体',
+            'SimHei': '黑体',
+            'KaiTi': '楷体',
+            'FangSong': '仿宋',
+            'DengXian': '等线',
+            'YouYuan': '幼圆',
+            'STXihei': '华文细黑',
+            'STKaiti': '华文楷体',
+            'STSong': '华文宋体',
+            'STZhongsong': '华文中宋',
+            'STFangsong': '华文仿宋'
+         }
+         systemFonts.value = rawFonts
+             .filter(f => !f.startsWith('@'))
+             .filter(f => !['Webdings', 'Wingdings', 'Marlett', 'Symbol'].includes(f))
+             .map(f => {
+                 const clean = f.replace(/^['"]|['"]$/g, '')
+                 return {
+                     label: fontNameMap[clean] || clean,
+                     value: `"${clean}"`,
+                     originalName: clean
+                 }
+             })
+             .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
+     } catch (e) {
+         console.warn('Load fonts failed', e)
+     }
+  } else {
+     // fallback
+     systemFonts.value = [
+       { label: '微软雅黑', value: '"Microsoft YaHei"', originalName: 'Microsoft YaHei' },
+       { label: '宋体', value: 'SimSun', originalName: 'SimSun' },
+       { label: '黑体', value: 'SimHei', originalName: 'SimHei' },
+       { label: '楷体', value: 'KaiTi', originalName: 'KaiTi' },
+       { label: 'Arial', value: 'Arial', originalName: 'Arial' },
+       { label: 'Times New Roman', value: '"Times New Roman"', originalName: 'Times New Roman' }
+     ]
+  }
+
   authStore.restoreUser()
+  
+  // 初始化编辑器样式
+  updateEditorStyles()
   
   // 总是显示项目列表（包含登录注册）
   currentView.value = 'projects'
   
   // 检查后端连接状态
   checkBackendConnection()
+
+  // 恢复用户设置
+  const savedSettings = localStorage.getItem('user_settings')
+  if (savedSettings) {
+    try {
+      userSettings.value = { ...userSettings.value, ...JSON.parse(savedSettings) }
+    } catch (e) {}
+  }
+  
+  // 启动自动快照
+  startAutoSnapshot()
   
   // 保留WebSocket事件监听（用于未来可能的WebSocket功能）
   wsService.on('message', (data) => {
@@ -834,9 +1082,15 @@ onMounted(() => {
     // 只有在WebSocket连接时才更新状态
     // HTTP API连接状态由checkBackendConnection管理
   })
+  
+  window.addEventListener('mousemove', handleGlobalMouseMove)
+  window.addEventListener('mouseup', handleGlobalMouseUp)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', handleGlobalMouseMove)
+  window.removeEventListener('mouseup', handleGlobalMouseUp)
+  
   editor.value?.destroy()
   wsService.disconnect()
   if (autoSnapshotInterval) {

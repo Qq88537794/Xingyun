@@ -96,7 +96,7 @@
         <button 
           @click="$emit('toggle-chat-panel')"
           :class="['btn-toggle', showChatPanel ? 'active' : '']"
-          title="AI 对话"
+          title="侧边栏"
         >
           <PanelRight :size="16" />
         </button>
@@ -107,7 +107,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft } from 'lucide-vue-next'
+import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft, MessageSquare } from 'lucide-vue-next'
 import { ExportService } from '../services/export'
 import { useToast } from '../composables/useToast'
 

@@ -24,7 +24,7 @@ export function useDocumentEditor(options = {}) {
       TableHeader,
       TableCell,
     ],
-    content: options.initialContent || '<p>开始编写您的文档...</p>',
+    content: options.initialContent || '',
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',

@@ -111,6 +111,23 @@
          <div v-if="showSizeMenu" @click="showSizeMenu = false" class="fixed inset-0 z-40" style="cursor: default;"></div>
       </div>
 
+       <!-- 字体颜色 -->
+      <div class="relative flex items-center mr-1">
+        <label 
+          class="flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 cursor-pointer transition-colors relative"
+          title="字体颜色"
+        >
+          <Baseline :size="16" :style="{ color: currentColor }" />
+          <input 
+            type="color" 
+            ref="colorInput"
+            @input="setColor"
+            :value="currentColor"
+            class="absolute opacity-0 w-full h-full cursor-pointer" 
+          />
+        </label>
+      </div>
+
       <button 
         @click="editor.chain().focus().toggleBold().run()"
         :class="{ 'is-active': editor.isActive('bold') }"
@@ -153,32 +170,53 @@
       </button>
     </div>
     
-    <!-- 标题 -->
+    <!-- 样式 -->
     <div class="flex items-center space-x-1 border-r border-gray-300 pr-2 mr-1">
-      <button 
-        @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-        :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }"
-        class="toolbar-btn"
-        title="标题1"
-      >
-        <Heading1 :size="16" />
-      </button>
-      <button 
-        @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-        :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }"
-        class="toolbar-btn"
-        title="标题2"
-      >
-        <Heading2 :size="16" />
-      </button>
-      <button 
-        @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-        :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }"
-        class="toolbar-btn"
-        title="标题3"
-      >
-        <Heading3 :size="16" />
-      </button>
+      <div class="relative w-24 mr-1">
+        <button 
+          @click="showStyleMenu = !showStyleMenu"
+          class="flex items-center justify-between w-full px-2 py-1 bg-white border border-gray-200 hover:border-blue-400 rounded text-xs transition-colors h-8"
+          title="样式"
+        >
+          <span class="truncate text-gray-700 font-medium">{{ currentStyleLabel }}</span>
+          <ChevronDown :size="12" class="text-gray-500 ml-1 flex-shrink-0" />
+        </button>
+        
+        <!-- 样式下拉菜单 -->
+        <div 
+          v-if="showStyleMenu"
+          class="absolute top-full left-0 mt-1 w-64 bg-white rounded shadow-xl border border-gray-200 py-1 z-50 max-h-96 overflow-y-auto"
+        >
+          <div
+            v-for="style in availableStyles"
+            :key="style.id"
+            class="group flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
+            @click="applyStyle(style)"
+          >
+            <!-- 预览区域 -->
+            <div class="flex-1 overflow-hidden mr-2">
+                 <div :style="getPreviewStyle(style)" class="truncate">
+                    {{ style.label }}
+                 </div>
+                 <div class="text-xs text-gray-400 mt-0.5 truncate">
+                    {{ style.element }}
+                 </div>
+            </div>
+            
+            <!-- 编辑按钮 -->
+            <button 
+                @click="editStyle(style, $event)"
+                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                title="修改样式"
+            >
+                <Settings :size="14" />
+            </button>
+          </div>
+        </div>
+        
+        <div v-if="showStyleMenu" @click="showStyleMenu = false" class="fixed inset-0 z-40" style="cursor: default;"></div>
+      </div>
+
     </div>
     
     <!-- 列表和引用 -->
@@ -274,11 +312,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { 
   Undo, Redo,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code,
-  Heading1, Heading2, Heading3,
   List, ListOrdered, Quote, FileCode,
   Image as ImageIcon, Table as TableIcon, Minus,
   Sparkles, Wand2, BarChart3,
-  Type, ChevronDown
+  ChevronDown, Settings, Baseline
 } from 'lucide-vue-next'
 import { useToast } from '../composables/useToast'
 
@@ -286,13 +323,37 @@ const props = defineProps({
   editor: {
     type: Object,
     required: true
+  },
+  styles: {
+      type: Array,
+      default: () => []
+  },
+  systemFonts: {
+      type: Array,
+      default: () => []
   }
 })
 
+const emit = defineEmits(['edit-style'])
+
 const toast = useToast()
 const showFontMenu = ref(false)
-const systemFonts = ref([])
 const recentFonts = ref([])
+
+const sortedSystemFonts = computed(() => {
+    // 优先使用传入的 systemFonts
+    let fonts = []
+    if (props.systemFonts && props.systemFonts.length > 0) {
+        fonts = [...props.systemFonts]
+    } else {
+        fonts = [...rawSystemFonts]
+    }
+
+    // 这里可以添加额外排序逻辑如果需要，
+    // 但 App.vue 传递进来的已经是排好序的了。
+    // 如果是 rawSystemFonts，它本身是硬编码列表。
+    return fonts
+})
 
 // 字体本地化映射表
 const fontNameMap = {
@@ -339,51 +400,6 @@ onMounted(async () => {
       console.warn('Failed to parse recent fonts')
     }
   }
-
-  // 加载系统字体
-  if (window.electronAPI && window.electronAPI.getSystemFonts) {
-    try {
-      const fonts = await window.electronAPI.getSystemFonts()
-      
-      // 过滤和处理字体
-      const processedFonts = fonts
-        .filter(f => !f.startsWith('@')) // 过滤掉 Windows 的竖排字体
-        .filter(f => !['Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3', 'Marlett', 'Symbol'].includes(f)) // 过滤符号字体
-        .map(f => {
-          // 尝试本地化名称
-          const cleanName = f.replace(/^['"]|['"]$/g, '')
-          const displayName = fontNameMap[cleanName] || cleanName
-          return {
-            label: displayName,
-            value: `"${cleanName}"`, // 加引号以防止空格问题
-            originalName: cleanName,
-            // 标记类型用于排序：优先字体 > 中文(有映射) > 其他英文
-            isPriority: priorityFonts.includes(cleanName),
-            isChinese: !!fontNameMap[cleanName]
-          }
-        })
-      
-      // 排序：优先字体 -> 其他中文 -> 英文(A-Z)
-      processedFonts.sort((a, b) => {
-        if (a.isPriority && !b.isPriority) return -1
-        if (!a.isPriority && b.isPriority) return 1
-        
-        if (a.isChinese && !b.isChinese) return -1
-        if (!a.isChinese && b.isChinese) return 1
-        
-        return a.label.localeCompare(b.label)
-      })
-
-      systemFonts.value = processedFonts
-    } catch (e) {
-      console.error('Failed to load system fonts:', e)
-      // 降级使用硬编码列表
-      systemFonts.value = rawSystemFonts
-    }
-  } else {
-    // 浏览器环境 fallback
-    systemFonts.value = rawSystemFonts
-  }
 })
 
 // 默认基础回退字体库
@@ -416,26 +432,25 @@ const rawSystemFonts = [
   { label: 'Verdana', value: 'Verdana, sans-serif', isChinese: false },
 ]
 
-// 排序后的系统字体列表
-const sortedSystemFonts = computed(() => {
-  // 如果有最近使用的字体，过滤掉它们以避免重复？
-  // 或者保留重复，但最近使用在顶部更方便。这里不做过滤。
-  return systemFonts.value
-})
-
 const currentFontLabel = computed(() => {
   if (!props.editor) return '微软雅黑'
   
   // 获取当前光标或选区的字体属性
   let activeFont = props.editor.getAttributes('textStyle').fontFamily
-  
+
   // 如果没有直接的字体属性，尝试获取编辑器计算样式
   // 这确保了在未设置字体（如粘贴纯文本）时显示真实渲染的字体，而不是错误的默认值
-  if (!activeFont && props.editor.view && props.editor.view.dom) {
+  if (!activeFont && props.editor.view) {
     try {
-      const computed = window.getComputedStyle(props.editor.view.dom).fontFamily
-      if (computed) {
-        activeFont = computed
+      const { from } = props.editor.state.selection
+      const dom = props.editor.view.domAtPos(from).node
+      const element = dom.nodeType === 3 ? dom.parentElement : dom
+      
+      if (element) {
+        const computed = window.getComputedStyle(element).fontFamily
+        if (computed) {
+          activeFont = computed
+        }
       }
     } catch (e) {
       // Ignore errors
@@ -448,7 +463,11 @@ const currentFontLabel = computed(() => {
   activeFont = activeFont.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
   
   // 在已加载的系统字体中查找
-  const knownFont = systemFonts.value.find(f => f.originalName === activeFont)
+  const knownFont = sortedSystemFonts.value.find(f => {
+      const cleanName = f.value.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
+      const cleanOg = (f.originalName || '').replace(/^['"]|['"]$/g, '')
+      return cleanName === activeFont || cleanOg === activeFont
+  })
   if (knownFont) return knownFont.label
   
   // 尝试在映射表中直接查找
@@ -463,6 +482,36 @@ const setFont = (fontItem) => {
     addToRecent(fontItem)
   }
   showFontMenu.value = false
+}
+
+const currentColor = computed(() => {
+    if (!props.editor) return '#000000'
+    const colorAttr = props.editor.getAttributes('textStyle').color
+    if (colorAttr) return colorAttr
+
+    // 计算属性 fallback
+    if (props.editor.view) {
+        try {
+            const { from } = props.editor.state.selection
+            const dom = props.editor.view.domAtPos(from).node
+            const element = dom.nodeType === 3 ? dom.parentElement : dom
+            if (element) {
+                const rgb = window.getComputedStyle(element).color
+                // rgb(0, 0, 0) -> #000000
+                if (rgb.startsWith('rgb')) {
+                    const [r, g, b] = rgb.match(/\d+/g).map(Number)
+                    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+                }
+            }
+        } catch(e) {}
+    }
+    return '#000000'
+})
+
+const colorInput = ref(null)
+const setColor = (event) => {
+  const color = event.target.value
+  props.editor.chain().focus().setColor(color).run()
 }
 
 const addToRecent = (fontItem) => {
@@ -527,22 +576,28 @@ const currentFontSizePt = computed(() => {
         return parseFloat(sizeAttr)
     }
     
-    // 如果没有，尝试获取 computed style
-    // 但 computed style 返回的是 px
-    // 获取选区所在的节点
-    const { from } = props.editor.state.selection
-    // 这是一个近似值，更精确的需要 traverse DOM selection
-    // 这里简单 fallback 到 editor view dom
-    if (props.editor.view && props.editor.view.dom) {
+    // 如果没有 inline style，尝试通过 window.getComputedStyle 获取当前光标位置的实际字号
+    if (props.editor.view) {
         try {
-            const computed = window.getComputedStyle(props.editor.view.dom).fontSize
-            if (computed && computed.endsWith('px')) {
-                // 1px approx 0.75pt
-                const px = parseFloat(computed)
-                // 转换回 pt，四舍五入到 0.5
-                return Math.round((px * 0.75) * 2) / 2
+            // 获取当前选区的DOM节点
+            const { from } = props.editor.state.selection
+            const dom = props.editor.view.domAtPos(from).node
+            
+            // 如果节点是文本节点，取其父元素
+            const element = dom.nodeType === 3 ? dom.parentElement : dom
+            
+            if (element) {
+                const computed = window.getComputedStyle(element).fontSize
+                if (computed && computed.endsWith('px')) {
+                    // px to pt conversion (1px = 0.75pt)
+                    const px = parseFloat(computed)
+                    // Round to nearest 0.5
+                    return Math.round((px * 0.75) * 2) / 2
+                }
             }
-        } catch(e) {}
+        } catch(e) {
+            // console.warn('Failed to get computed font size', e)
+        }
     }
 
     return 10.5
@@ -587,6 +642,65 @@ const handleSizeInputConfirm = () => {
 }
 
 const fonts = [] // 兼容保留
+
+/* 样式功能相关 */
+const showStyleMenu = ref(false)
+
+// 默认样式列表 - 如果父组件没有传入，使用默认值
+const defaultStyles = [
+    { id: 'paragraph', label: '正文', element: 'p', style: { fontSize: 16, color: '#374151', bold: false } },
+    { id: 'heading1', label: '标题 1', element: 'h1', level: 1, style: { fontSize: 32, color: '#111827', bold: true } },
+    { id: 'heading2', label: '标题 2', element: 'h2', level: 2, style: { fontSize: 24, color: '#1f2937', bold: true } },
+    { id: 'heading3', label: '标题 3', element: 'h3', level: 3, style: { fontSize: 18.72, color: '#374151', bold: true } },
+    { id: 'heading4', label: '标题 4', element: 'h4', level: 4, style: { fontSize: 16, color: '#374151', bold: true } },
+]
+
+const availableStyles = computed(() => {
+    return props.styles && props.styles.length > 0 ? props.styles : defaultStyles
+})
+
+const currentStyleLabel = computed(() => {
+    if (!props.editor) return '正文'
+    
+    if (props.editor.isActive('heading', { level: 1 })) return '标题 1'
+    if (props.editor.isActive('heading', { level: 2 })) return '标题 2'
+    if (props.editor.isActive('heading', { level: 3 })) return '标题 3'
+    if (props.editor.isActive('heading', { level: 4 })) return '标题 4'
+    
+    return '正文'
+})
+
+const applyStyle = (styleItem) => {
+    if (!props.editor) return
+    
+    if (styleItem.element === 'p') {
+        props.editor.chain().focus().setParagraph().run()
+    } else if (styleItem.element.startsWith('h')) {
+        props.editor.chain().focus().toggleHeading({ level: styleItem.level }).run()
+    }
+    
+    showStyleMenu.value = false
+}
+
+const editStyle = (styleItem, event) => {
+    if (event) event.stopPropagation()
+    showStyleMenu.value = false
+    emit('edit-style', styleItem)
+}
+
+// Helper to convert style object to CSS string for preview
+const getPreviewStyle = (styleObj) => {
+    const s = styleObj.style || {}
+    return {
+        fontSize: s.fontSize + 'px',
+        fontWeight: s.bold ? 'bold' : 'normal',
+        fontStyle: s.italic ? 'italic' : 'normal',
+        color: s.color,
+        fontFamily: s.fontFamily || 'inherit',
+        // Reset margins for the dropdown item to avoid layout issues
+        margin: 0
+    }
+}
 
 const insertImage = () => {
   const url = prompt('请输入图片URL:')
