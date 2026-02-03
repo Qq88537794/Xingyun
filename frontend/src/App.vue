@@ -11,8 +11,9 @@
       :show-material-panel="showMaterialPanel"
       :show-chat-panel="showChatPanel"
       :editor-json="editorJson"
+      :editor-html="editorHtml"
       :project-name="currentProject?.name"
-      @new-document="handleNewDocument" 
+      @new-document="handleNewDocument"  
       @save-document="handleSaveDocument"
       @open-document="handleOpenDocument"
       @toggle-material-panel="showMaterialPanel = !showMaterialPanel"
@@ -452,6 +453,10 @@ const wordCount = computed(() => {
 
 const editorJson = computed(() => {
   return editor.value?.getJSON() || null
+})
+
+const editorHtml = computed(() => {
+  return editor.value?.getHTML() || ''
 })
 
 const hasSelection = computed(() => {

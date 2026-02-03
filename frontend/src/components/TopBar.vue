@@ -60,7 +60,6 @@
               <button @click="handleExport('pdf')" class="export-menu-item">
                 <FileText :size="16" class="text-red-500" />
                 <span>PDF (.pdf)</span>
-                <span class="ml-auto text-xs text-gray-400">需后端</span>
               </button>
               <button @click="handleExport('tex')" class="export-menu-item">
                 <FileCode :size="16" class="text-green-500" />
@@ -123,6 +122,10 @@ const props = defineProps({
   editorJson: {
     type: Object,
     default: null
+  },
+  editorHtml: {
+    type: String,
+    default: ''
   },
   projectName: {
     type: String,
@@ -207,6 +210,13 @@ const handleExport = async (format) => {
       }
       break
     case 'pdf':
+      try {
+        const fileName = props.projectName ? props.projectName : 'document'
+        await ExportService.exportToPdf(props.editorHtml, fileName)
+      } catch (err) {
+        toast.error('PDF导出失败: ' + err.message)
+      }
+      break
     case 'tex':
       // 需要后端支持
       toast.warning(`${format.toUpperCase()} 导出需要后端支持`)

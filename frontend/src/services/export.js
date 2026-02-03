@@ -15,6 +15,71 @@ export class ExportService {
     return this.processNodes(json.content)
   }
 
+  /**
+   * 导出为 PDF
+   */
+  static async exportToPdf(htmlContent, title = 'document') {
+    if (window.electronAPI) {
+      // Electron 环境：使用 Native PrintToPDF
+      return await window.electronAPI.exportPdf(htmlContent)
+    } else {
+      // 浏览器环境：使用 iframe 打印
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'fixed'
+      iframe.style.right = '0'
+      iframe.style.bottom = '0'
+      iframe.style.width = '0'
+      iframe.style.height = '0'
+      iframe.style.border = '0'
+      
+      document.body.appendChild(iframe)
+      
+      const doc = iframe.contentWindow.document
+      doc.open()
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${title}</title>
+            <style>
+              body { 
+                font-family: 'Microsoft YaHei', sans-serif; 
+                padding: 5px; 
+                max-width: 800px; 
+                margin: 0 auto; 
+                line-height: 1.6;
+              }
+              h1, h2, h3, h4 { color: #111827; margin-top: 1em; margin-bottom: 0.5em; }
+              p { margin-bottom: 1em; color: #374151; }
+              img { max-width: 100%; height: auto; }
+              table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+              th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+              th { background-color: #f3f4f6; }
+              blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; font-style: italic; }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+        </html>
+      `)
+      doc.close()
+
+      // 等待图片加载完成
+      setTimeout(() => {
+        iframe.contentWindow.focus()
+        iframe.contentWindow.print()
+        // 打印对话框关闭后移除 iframe (注意：用户取消也会触发)
+        // 无法精确监听打印完成，延迟移除
+        setTimeout(() => {
+          document.body.removeChild(iframe)
+        }, 1000)
+      }, 500)
+      
+      return { success: true }
+    }
+  }
+
   static processNodes(nodes, listLevel = 0) {
     if (!nodes) return ''
     return nodes.map(node => this.processNode(node, listLevel)).join('')

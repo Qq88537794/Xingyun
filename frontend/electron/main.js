@@ -110,6 +110,75 @@ ipcMain.handle('file:write', async (event, filePath, content) => {
   }
 })
 
+// PDF 导出
+ipcMain.handle('system:exportPdf', async (event, htmlContent) => {
+  let printWindow = new BrowserWindow({ 
+    show: false, 
+    webPreferences: { 
+      nodeIntegration: true 
+    } 
+  })
+
+  const completeHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { 
+            font-family: 'Microsoft YaHei', sans-serif; 
+            padding: 40px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            line-height: 1.6;
+          }
+          h1, h2, h3, h4 { color: #111827; margin-top: 1em; margin-bottom: 0.5em; }
+          p { margin-bottom: 1em; color: #374151; }
+          img { max-width: 100%; height: auto; }
+          table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+          th { background-color: #f3f4f6; }
+          blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; font-style: italic; }
+          code { background-color: #f3f4f6; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; }
+          pre { background-color: #1f2937; color: #f9fafb; padding: 1em; border-radius: 6px; overflow-x: auto; }
+          pre code { background-color: transparent; padding: 0; }
+          ul, ol { padding-left: 1.5em; margin-bottom: 1em; }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+    </html>
+  `
+  
+  try {
+    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(completeHtml)}`
+    await printWindow.loadURL(dataUrl)
+    
+    const { filePath } = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: 'document.pdf',
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }]
+    })
+
+    if (filePath) {
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: { top: 0.3, bottom: 0.3, left: 0.3, right: 0.3 } // inches
+      })
+      fs.writeFileSync(filePath, pdfData)
+      printWindow.close()
+      return { success: true, filePath }
+    } else {
+      printWindow.close()
+      return { canceled: true }
+    }
+  } catch (error) {
+    if(!printWindow.isDestroyed()) printWindow.close()
+    return { success: false, error: error.message }
+  }
+})
+
 // IPC处理器 - 应用信息
 ipcMain.handle('app:getPath', async (event, name) => {
   return app.getPath(name)

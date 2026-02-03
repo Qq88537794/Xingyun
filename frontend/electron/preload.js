@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
   readFileAsBuffer: (filePath) => ipcRenderer.invoke('file:readBuffer', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
+  exportPdf: (htmlContent) => ipcRenderer.invoke('system:exportPdf', htmlContent),
 
   // 应用路径
   getAppPath: (name) => ipcRenderer.invoke('app:getPath', name),
