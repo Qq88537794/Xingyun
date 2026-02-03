@@ -290,13 +290,16 @@ const handleGlobalMouseUp = () => {
     }
 }
 
-// 样式管理
-const docStyles = ref([
+// 默认样式列表 - 如果父组件没有传入，使用默认值
+const defaultStyles = [
     { id: 'paragraph', label: '正文', element: 'p', style: { fontSize: 16, lineHeight: 1.6, color: '#374151', bold: false, italic: false, marginTop: 0, marginBottom: 0.75, fontFamily: 'Microsoft YaHei' } },
     { id: 'heading1', label: '标题 1', element: 'h1', level: 1, style: { fontSize: 32, lineHeight: 1.2, color: '#111827', bold: true, italic: false, marginTop: 1, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
     { id: 'heading2', label: '标题 2', element: 'h2', level: 2, style: { fontSize: 24, lineHeight: 1.3, color: '#1f2937', bold: true, italic: false, marginTop: 0.83, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
     { id: 'heading3', label: '标题 3', element: 'h3', level: 3, style: { fontSize: 18.72, lineHeight: 1.4, color: '#374151', bold: true, italic: false, marginTop: 1, marginBottom: 0.5, fontFamily: 'Microsoft YaHei' } },
-])
+]
+
+// 样式管理
+const docStyles = ref([...defaultStyles]) // Initialize with copy of default styles
 
 const systemFonts = ref([])
 const editingStyle = ref(null)
@@ -547,28 +550,51 @@ const handleSaveDocument = async () => {
   if (!window.electronAPI) {
     // 浏览器环境：保存到 localStorage
     const json = editor.value?.getJSON()
+    
+    // 构建包含样式的数据包
+    const dataToSave = {
+      version: '1.0',
+      content: json,
+      styles: docStyles.value, // 保存当前项目的自定义样式
+      updated_at: new Date().toISOString()
+    }
+    
+    // 如果有项目ID，保存到特定的项目key
+    if (currentProjectId.value) {
+      localStorage.setItem(`doc_data_${currentProjectId.value}`, JSON.stringify(dataToSave))
+    }
+    // 同时更新全局 doc_content 作为最后一次编辑的备份（兼容旧逻辑，但不建议依赖）
     localStorage.setItem('doc_content', JSON.stringify(json))
+    
     lastSaved.value = new Date().toISOString()
-    toast.success('文档已保存到本地')
+    toast.success('文档与配置已保存到本地缓存')
     return
   }
   
   const filePath = await window.electronAPI.saveFile({
-    defaultPath: 'document.json',
+    defaultPath: currentProject.value ? `${currentProject.value.name}.json` : 'document.json',
     filters: [
-      { name: 'JSON Document', extensions: ['json'] },
+      { name: 'Xingyun Document', extensions: ['json'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   })
   
   if (filePath) {
     const json = editor.value?.getJSON()
-    const content = JSON.stringify(json, null, 2)
+    // 构建包含样式的数据包
+    const dataToSave = {
+      version: '1.0',
+      content: json,
+      styles: docStyles.value, // 保存当前项目的自定义样式
+      updated_at: new Date().toISOString()
+    }
+    
+    const content = JSON.stringify(dataToSave, null, 2)
     const result = await window.electronAPI.writeFile(filePath, content)
     
     if (result.success) {
       lastSaved.value = new Date().toISOString()
-      toast.success('文档保存成功')
+      toast.success('文档保存成功 (包含样式配置)')
     } else {
       toast.error('保存失败: ' + result.error)
     }
@@ -577,10 +603,27 @@ const handleSaveDocument = async () => {
 
 const handleOpenDocument = (data) => {
   try {
-    const json = JSON.parse(data)
-    editor.value?.commands.setContent(json)
-    toast.success('文档已加载')
+    const parsedData = JSON.parse(data)
+    
+    // 检查是否是新格式（包含 version/content/styles）
+    if (parsedData.version && parsedData.content) {
+       editor.value?.commands.setContent(parsedData.content)
+       
+       if (parsedData.styles && Array.isArray(parsedData.styles)) {
+         docStyles.value = parsedData.styles
+         // 强制更新样式渲染
+         setTimeout(() => updateEditorStyles(), 100)
+         toast.success('文档与样式配置已加载')
+       } else {
+         toast.success('文档已加载 (无自定义样式)')
+       }
+    } else {
+      // 兼容旧格式（纯 TipTap JSON）
+      editor.value?.commands.setContent(parsedData)
+      toast.success('文档已加载 (旧格式)')
+    }
   } catch (e) {
+    console.error('Open error:', e)
     toast.error('文档格式错误')
   }
 }
@@ -975,17 +1018,37 @@ const handleSelectProject = async (project) => {
   // 获取项目素材
   await fetchMaterials()
   
-  // 恢复保存的内容
-  const savedContent = localStorage.getItem(`doc_content_${project.id}`)
-  if (savedContent) {
-    try {
-      const json = JSON.parse(savedContent)
-      editor.value?.commands.setContent(json)
-    } catch (e) {
-      console.warn('恢复文档失败')
-    }
+  // 恢复保存的内容 (优先尝试读取新格式 doc_data_${id})
+  const savedData = localStorage.getItem(`doc_data_${project.id}`)
+  if (savedData) {
+     try {
+       const parsedData = JSON.parse(savedData)
+       if (parsedData.version && parsedData.content) {
+         editor.value?.commands.setContent(parsedData.content)
+         if (parsedData.styles) {
+           docStyles.value = parsedData.styles
+           setTimeout(() => updateEditorStyles(), 100)
+         }
+       } else {
+         // 虽然用了 doc_data key 但格式不对，尝试直接加载
+         editor.value?.commands.setContent(parsedData)
+       }
+     } catch (e) {
+       console.warn('恢复文档(新格式)失败', e)
+     }
   } else {
-    editor.value?.commands.setContent('')
+    // 降级尝试读取旧格式
+    const savedContent = localStorage.getItem(`doc_content_${project.id}`)
+    if (savedContent) {
+      try {
+        const json = JSON.parse(savedContent)
+        editor.value?.commands.setContent(json)
+      } catch (e) {
+        console.warn('恢复文档(旧格式)失败')
+      }
+    } else {
+      editor.value?.commands.setContent('')
+    }
   }
   
   // 恢复快照
@@ -1006,7 +1069,17 @@ const handleBackToProjects = () => {
   // 保存当前文档
   if (currentProjectId.value && editor.value) {
     const json = editor.value.getJSON()
-    localStorage.setItem(`doc_content_${currentProjectId.value}`, JSON.stringify(json))
+    // 使用新格式保存，包含 styles
+    const dataToSave = {
+        version: '1.0',
+        content: json,
+        styles: docStyles.value,
+        updated_at: new Date().toISOString()
+    }
+    
+    localStorage.setItem(`doc_data_${currentProjectId.value}`, JSON.stringify(dataToSave))
+    // 保留旧格式用于兼容
+    // localStorage.setItem(`doc_content_${currentProjectId.value}`, JSON.stringify(json)) 
     localStorage.setItem(`doc_snapshots_${currentProjectId.value}`, JSON.stringify(snapshots.value))
   }
   
@@ -1015,6 +1088,10 @@ const handleBackToProjects = () => {
   currentProjectId.value = null
   materials.value = []
   chatMessages.value = []
+  
+  // 重置样式为默认值，避免污染下一个打开的项目
+  docStyles.value = [...defaultStyles]
+  updateEditorStyles()
 }
 
 // 检查后端连接状态
