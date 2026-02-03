@@ -7,6 +7,7 @@ from .folders import folders_bp
 from .user import user_bp
 from .ai_v2 import ai_bp
 from .export import export_bp
+from .images import images_bp
 
 
 def register_blueprints(app):
@@ -18,4 +19,5 @@ def register_blueprints(app):
     app.register_blueprint(folders_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(export_bp)
+    app.register_blueprint(images_bp)
 

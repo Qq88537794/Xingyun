@@ -199,6 +199,7 @@ import { useAuthStore } from './stores/auth'
 import { useWebSocketService } from './services/websocket'
 import { useToast } from './composables/useToast'
 import { getResources, uploadResourceFromPath, deleteResource } from './services/resources'
+import { uploadImage } from './services/image'
 import api from './services/api'
 
 const documentStore = useDocumentStore()
@@ -388,6 +389,51 @@ const editor = useEditor({
     attributes: {
       class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
     },
+    handlePaste: (view, event, slice) => {
+        const items = (event.clipboardData || event.originalEvent.clipboardData).items
+        for (const item of items) {
+            if (item.type.indexOf('image') === 0) {
+                event.preventDefault()
+                const file = item.getAsFile()
+                if (file) {
+                    uploadImage(file).then(url => {
+                        const { schema } = view.state
+                        const node = schema.nodes.image.create({ src: url })
+                        const transaction = view.state.tr.replaceSelectionWith(node)
+                        view.dispatch(transaction)
+                        toast.success('图片已粘贴并上传')
+                    }).catch(err => {
+                        toast.error('图片粘贴失败')
+                    })
+                }
+                return true
+            }
+        }
+        return false
+    },
+    handleDrop: (view, event, slice, moved) => {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+            const file = event.dataTransfer.files[0]
+            if (file.type.startsWith('image/')) {
+                event.preventDefault()
+                uploadImage(file).then(url => {
+                     const { schema } = view.state
+                     // 计算释放位置
+                     const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY })
+                     if (coordinates) {
+                         const node = schema.nodes.image.create({ src: url })
+                         const transaction = view.state.tr.insert(coordinates.pos, node)
+                         view.dispatch(transaction)
+                     }
+                     toast.success('图片已上传')
+                }).catch(err => {
+                    toast.error('图片上传失败')
+                })
+                return true
+            }
+        }
+        return false
+    }
   },
   onUpdate: ({ editor }) => {
     const json = editor.getJSON()

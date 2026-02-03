@@ -77,6 +77,8 @@ def create_app():
     # Create upload folder if not exists
     if not os.path.exists(Config.UPLOAD_FOLDER):
         os.makedirs(Config.UPLOAD_FOLDER)
+    if not os.path.exists(Config.EDITOR_IMAGE_FOLDER):
+        os.makedirs(Config.EDITOR_IMAGE_FOLDER)
     
     # Register blueprints
     register_blueprints(app)
@@ -86,6 +88,12 @@ def create_app():
     def uploaded_file(filename):
         """Serve uploaded files"""
         return send_from_directory(Config.UPLOAD_FOLDER, filename)
+
+    # Serve editor images
+    @app.route('/editor_images/<path:filename>')
+    def uploaded_image(filename):
+        """Serve editor images"""
+        return send_from_directory(Config.EDITOR_IMAGE_FOLDER, filename)
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])

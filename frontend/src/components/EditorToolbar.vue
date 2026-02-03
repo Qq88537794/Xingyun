@@ -257,13 +257,70 @@
     
     <!-- 插入 -->
     <div class="flex items-center space-x-1 border-r border-gray-300 pr-2 mr-1">
-      <button 
-        @click="insertImage"
-        class="toolbar-btn"
-        title="插入图片"
-      >
-        <ImageIcon :size="16" />
-      </button>
+      <div class="relative">
+        <button 
+          @click="showImageMenu = !showImageMenu"
+          class="toolbar-btn"
+          title="插入图片"
+        >
+          <ImageIcon :size="16" />
+        </button>
+        <!-- 图片菜单 -->
+        <div 
+          v-if="showImageMenu" 
+          class="absolute top-full left-0 mt-1 w-64 bg-white rounded shadow-xl border border-gray-200 py-1 z-50 flex flex-col"
+        >
+          <div v-if="imageMenuStep === 'list'" class="flex flex-col">
+            <button 
+              @click="triggerImageUpload" 
+              class="text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+            >
+              <span>本地上传</span>
+            </button>
+            <button 
+              @click="showUrlInput" 
+              class="text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+            >
+              <span>网络图片</span>
+            </button>
+          </div>
+          
+          <div v-else-if="imageMenuStep === 'url'" class="p-2 flex flex-col space-y-2">
+            <input 
+              ref="urlInputRef"
+              v-model="imageUrlInput"
+              type="text" 
+              placeholder="https://..." 
+              class="text-sm border rounded px-2 py-1 w-full focus:outline-none focus:border-blue-400"
+              @keydown.enter="confirmImageUrl"
+              @keydown.esc="cancelUrlInput"
+            />
+            <div class="flex justify-end space-x-1">
+              <button 
+                @click="cancelUrlInput"
+                class="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded"
+              >
+                取消
+              </button>
+              <button 
+                @click="confirmImageUrl"
+                class="px-2 py-1 text-xs bg-blue-500 text-white hover:bg-blue-600 rounded"
+              >
+                插入
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-if="showImageMenu" @click="showImageMenu = false" class="fixed inset-0 z-40" style="cursor: default;"></div>
+        <input 
+          type="file" 
+          ref="imageInput" 
+          class="hidden" 
+          accept="image/*" 
+          @change="handleImageFile" 
+        />
+      </div>
+
       <button 
         @click="insertTable"
         class="toolbar-btn"
@@ -318,6 +375,7 @@ import {
   ChevronDown, Settings, Baseline
 } from 'lucide-vue-next'
 import { useToast } from '../composables/useToast'
+import { uploadImage } from '../services/image'
 
 const props = defineProps({
   editor: {
@@ -338,6 +396,11 @@ const emit = defineEmits(['edit-style'])
 
 const toast = useToast()
 const showFontMenu = ref(false)
+const showImageMenu = ref(false)
+const imageMenuStep = ref('list')
+const imageUrlInput = ref('')
+const urlInputRef = ref(null)
+const imageInput = ref(null)
 const recentFonts = ref([])
 
 const sortedSystemFonts = computed(() => {
@@ -702,12 +765,55 @@ const getPreviewStyle = (styleObj) => {
     }
 }
 
-const insertImage = () => {
-  const url = prompt('请输入图片URL:')
-  if (url) {
+const triggerImageUpload = () => {
+  showImageMenu.value = false
+  imageInput.value?.click()
+}
+
+const handleImageFile = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  try {
+    const url = await uploadImage(file)
     props.editor.chain().focus().setImage({ src: url }).run()
+    toast.success('图片上传成功')
+  } catch (e) {
+    toast.error('图片上传失败: ' + (e.message || '未知错误'))
+  } finally {
+    event.target.value = '' // reset input
   }
 }
+
+const showUrlInput = () => {
+  imageMenuStep.value = 'url'
+  imageUrlInput.value = ''
+  setTimeout(() => {
+    if (urlInputRef.value) {
+      urlInputRef.value.focus()
+    }
+  }, 50)
+}
+
+const confirmImageUrl = () => {
+  if (imageUrlInput.value) {
+    props.editor.chain().focus().setImage({ src: imageUrlInput.value }).run()
+  }
+  showImageMenu.value = false
+  imageMenuStep.value = 'list'
+}
+
+const cancelUrlInput = () => {
+  imageMenuStep.value = 'list'
+  imageUrlInput.value = ''
+}
+
+watch(showImageMenu, (val) => {
+  if (!val) {
+    imageMenuStep.value = 'list'
+    imageUrlInput.value = ''
+  }
+})
 
 const insertTable = () => {
   props.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
