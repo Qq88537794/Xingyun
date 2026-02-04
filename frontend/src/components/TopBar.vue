@@ -127,6 +127,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  styles: {
+    type: Array,
+    default: () => []
+  },
   projectName: {
     type: String,
     default: ''
@@ -212,7 +216,8 @@ const handleExport = async (format) => {
     case 'pdf':
       try {
         const fileName = props.projectName ? props.projectName : 'document'
-        await ExportService.exportToPdf(props.editorHtml, fileName)
+        // Use styles prop passed from App.vue
+        await ExportService.exportToPdf(props.editorHtml, fileName, props.styles)
       } catch (err) {
         toast.error('PDF导出失败: ' + err.message)
       }

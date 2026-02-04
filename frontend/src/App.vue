@@ -12,6 +12,7 @@
       :show-chat-panel="showChatPanel"
       :editor-json="editorJson"
       :editor-html="editorHtml"
+      :styles="docStyles"
       :project-name="currentProject?.name"
       @new-document="handleNewDocument"  
       @save-document="handleSaveDocument"

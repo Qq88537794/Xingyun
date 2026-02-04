@@ -18,10 +18,54 @@ export class ExportService {
   /**
    * 导出为 PDF
    */
-  static async exportToPdf(htmlContent, title = 'document') {
+  static async exportToPdf(htmlContent, title = 'document', styles = []) {
+    // Generate CSS from styles object
+    const customCss = this.generateCssFromStyles(styles)
+    
+    // Default base styles
+    const baseCss = `
+      body { 
+        font-family: 'Microsoft YaHei', sans-serif; 
+        padding: 20px; 
+        max-width: 800px; 
+        margin: 0 auto; 
+        line-height: 1.6;
+        color: #333;
+      }
+      img { max-width: 100%; height: auto; }
+      table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+      th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+      th { background-color: #f3f4f6; }
+      blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; font-style: italic; }
+      
+      /* Inline Code */
+      code { background-color: #f3f4f6; color: #e01e5a; padding: 2px 4px; border-radius: 4px; font-family: Consolas, Monaco, 'Andale Mono', monospace; }
+      
+      /* Code Blocks - Dark Theme */
+      pre { background-color: #1e1e1e; color: #f8f8f2; padding: 1em; border-radius: 8px; overflow-x: auto; margin: 1em 0; }
+      pre code { background-color: transparent; color: inherit; padding: 0; }
+    `
+
+    const finalHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${title}</title>
+            <style>
+              ${baseCss}
+              /* Custom Project Styles */
+              ${customCss}
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+        </html>
+    `
+
     if (window.electronAPI) {
       // Electron 环境：使用 Native PrintToPDF
-      return await window.electronAPI.exportPdf(htmlContent)
+      return await window.electronAPI.exportPdf(finalHtml)
     } else {
       // 浏览器环境：使用 iframe 打印
       const iframe = document.createElement('iframe')
@@ -36,33 +80,7 @@ export class ExportService {
       
       const doc = iframe.contentWindow.document
       doc.open()
-      doc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${title}</title>
-            <style>
-              body { 
-                font-family: 'Microsoft YaHei', sans-serif; 
-                padding: 5px; 
-                max-width: 800px; 
-                margin: 0 auto; 
-                line-height: 1.6;
-              }
-              h1, h2, h3, h4 { color: #111827; margin-top: 1em; margin-bottom: 0.5em; }
-              p { margin-bottom: 1em; color: #374151; }
-              img { max-width: 100%; height: auto; }
-              table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-              th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
-              th { background-color: #f3f4f6; }
-              blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; font-style: italic; }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-        </html>
-      `)
+      doc.write(finalHtml)
       doc.close()
 
       // 等待图片加载完成
@@ -77,6 +95,82 @@ export class ExportService {
       }, 500)
       
       return { success: true }
+    }
+  }
+
+  static generateCssFromStyles(styles) {
+    if (!styles || !Array.isArray(styles)) return ''
+    
+    return styles.map(item => {
+      const { element, style } = item
+      if (!element || !style) return ''
+      
+      // Convert camelCase style keys to kebab-case (e.g., fontSize -> font-size)
+      const cssProps = Object.entries(style).map(([key, value]) => {
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+        
+        // Handle specific values if needed, mainly units for numbers
+        let cssValue = value
+        
+        // Add px to numeric values for certain properties if they are numbers
+        if (typeof value === 'number') {
+           if (['fontSize', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom', 'lineHeight'].includes(key)) {
+               // lineHeight is unitless usually for ratio, but fontSize needs px.
+               // Check logic. The json shows fontSize: 32. 
+               // lineHeight: 1.2 (unitless).
+               // margins: 1 (likely em or rem? or unitless for lineHeight?). 
+               // In TipTap editor commonly: 
+               // fontSize -> px
+               // lineHeight -> unitless
+               // margin -> em or rem often. 
+               
+               // Let's assume usage in editor:
+               if (key === 'fontSize') cssValue = `${value}px`
+               // if (key.includes('margin')) cssValue = `${value}em` // Assumption based on editor
+           }
+        }
+        
+        // Handle specific boolean flags like 'bold', 'italic' if they exist in the style block
+        if (key === 'bold') return value ? 'font-weight: bold;' : ''
+        if (key === 'italic') return value ? 'font-style: italic;' : ''
+        
+        // Cleanup null/undefined
+        if (value === null || value === undefined) return ''
+        
+        return `${cssKey}: ${cssValue};`
+      }).join(' ')
+      
+      return `${element} { ${cssProps} }`
+    }).join('\n')
+  }
+
+  /**
+   * 导出为 Word (.docx)
+   * 调用后端 API
+   */
+  static async toWord(json, title = 'document') {
+    try {
+      const response = await api.post('/export/docx', {
+        title: title,
+        content: json.content || json // Ensure we pass the TipTap content
+      }, {
+        responseType: 'blob'
+      })
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', title.endsWith('.docx') ? title : `${title}.docx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      
+      return { success: true }
+    } catch (error) {
+      console.error('Word export failed:', error)
+      throw new Error('导出服务连接失败，请确保后端服务正在运行')
     }
   }
 
