@@ -1,4 +1,7 @@
 from flask import Blueprint, request, send_file, jsonify, current_app
+import zipfile
+import tempfile
+import shutil
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -540,4 +543,368 @@ def export_docx():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ==========================================
+# LaTeX Export Logic
+# ==========================================
+
+def escape_latex(text):
+    """Escape special characters for LaTeX and filter unsupported symbols (Emojis)"""
+    if not text:
+        return ""
+    
+    # 1. Filter out Emojis and unsupported symbols
+    # Remove characters outside BMP (Basic Multilingual Plane), e.g., 🚧 (U+1F6A7)
+    text = "".join(c for c in text if c <= '\uFFFF')
+    
+    # Remove specific BMP ranges for Symbols/Dingbats (likely to crash standard fonts), e.g., ✅ (U+2705)
+    # Range: Dingbats (U+2700-U+27BF), Misc Symbols (U+2600-U+26FF)
+    text = re.sub(r'[\u2600-\u27BF]', '', text)
+    
+    # 2. Escape LaTeX special characters
+    special_chars = {
+        '&': r'\&',
+        '%': r'\%',
+        '$': r'\$',
+        '#': r'\#',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+        '^': r'\textasciicircum{}',
+        '\\': r'\textbackslash{}',
+    }
+    
+    escaped = ""
+    for char in text:
+        escaped += special_chars.get(char, char)
+    return escaped
+
+def get_latex_color(hex_color):
+    """Convert hex string to LaTeX HTML color syntax"""
+    if not hex_color or not hex_color.startswith('#'):
+        return None
+    return hex_color.lstrip('#').upper()
+
+class LatexExporter:
+    def __init__(self, content_json, styles_list):
+        self.content = content_json
+        self.styles = styles_list
+        self.images = [] # List of tuples: (filename, stream)
+        self.image_counter = 0
+        
+        # Parse styles into a usable map: element -> color_hex
+        self.global_colors = {}
+        self._parse_styles()
+
+    def _parse_styles(self):
+        """Extract color colors from global styles"""
+        if not self.styles: return
+        
+        # Map internal IDs or Elements to our processing logic
+        # Elements: p, h1, h2, h3, blockquote?
+        for item in self.styles:
+            element = item.get('element')
+            style = item.get('style', {})
+            color = style.get('color')
+            if element and color and color != '#000000' and color != '#333333': # Ignore near-blacks used as defaults
+                self.global_colors[element] = get_latex_color(color)
+
+    def process_inline(self, content):
+        """Process inline text nodes to LaTeX string"""
+        if not content: return ""
+        
+        result = []
+        for node in content:
+            node_type = node.get('type')
+            
+            if node_type == 'text':
+                text = escape_latex(node.get('text', ''))
+                marks = node.get('marks', [])
+                
+                # Apply marks (wrappers)
+                # Order matters? LaTeX handles nesting well usually.
+                
+                prefix = ""
+                suffix = ""
+                
+                for mark in marks:
+                    m_type = mark.get('type')
+                    attrs = mark.get('attrs', {})
+                    
+                    if m_type == 'bold':
+                        prefix = r"\textbf{" + prefix
+                        suffix = suffix + "}"
+                    elif m_type == 'italic':
+                        prefix = r"\textit{" + prefix
+                        suffix = suffix + "}"
+                    elif m_type == 'underline':
+                        prefix = r"\uline{" + prefix
+                        suffix = suffix + "}"
+                    elif m_type == 'strike':
+                        prefix = r"\sout{" + prefix
+                        suffix = suffix + "}"
+                    elif m_type == 'code':
+                        prefix = r"\texttt{" + prefix
+                        suffix = suffix + "}"
+                    elif m_type == 'textStyle':
+                        color = attrs.get('color')
+                        if color:
+                            c_hex = get_latex_color(color)
+                            if c_hex:
+                                prefix = r"\textcolor[HTML]{" + c_hex + "}{" + prefix
+                                suffix = suffix + "}"
+                                
+                    elif m_type == 'link':
+                        href = attrs.get('href', '')
+                        # \href{url}{text}
+                        # We need to wrap the *inner* text, so href goes outside?
+                        # Actually link is usually the outer-most mark stylistically.
+                        # But TipTap marks can be any order.
+                        # Let's wrap current result.
+                        prefix = r"\href{" + href + "}{" + prefix
+                        suffix = suffix + "}"
+
+                result.append(f"{prefix}{text}{suffix}")
+                
+            elif node_type == 'hardBreak':
+                result.append(r"\\")
+                
+        return "".join(result)
+
+    def process_node(self, node):
+        """Process a block node"""
+        node_type = node.get('type')
+        content = node.get('content', [])
+        attrs = node.get('attrs', {})
+        latex_out = ""
+
+        if node_type == 'doc':
+            for child in content:
+                latex_out += self.process_node(child) + "\n"
+
+        elif node_type == 'heading':
+            level = attrs.get('level', 1)
+            text = self.process_inline(content)
+            
+            # Apply global color for heading if exists
+            h_tag = f"h{level}"
+            if h_tag in self.global_colors:
+                text = r"\textcolor[HTML]{" + self.global_colors[h_tag] + "}{" + text + "}"
+            
+            if level == 1: latex_out = f"\\section{{{text}}}\n"
+            elif level == 2: latex_out = f"\\subsection{{{text}}}\n"
+            elif level == 3: latex_out = f"\\subsubsection{{{text}}}\n"
+            else: latex_out = f"\\paragraph{{{text}}}\n"
+
+        elif node_type == 'paragraph':
+            text = self.process_inline(content)
+            if not text.strip():
+                return "\n" # Empty paragraph
+            
+            # Global color for paragraph
+            if 'p' in self.global_colors:
+                 text = r"\textcolor[HTML]{" + self.global_colors['p'] + "}{" + text + "}"
+                 
+            alignment = attrs.get('textAlign')
+            if alignment == 'center':
+                latex_out = "\\begin{center}\n" + text + "\n\\end{center}\n"
+            elif alignment == 'right':
+                latex_out = "\\begin{flushright}\n" + text + "\n\\end{flushright}\n"
+            else:
+                latex_out = text + "\n\n"
+
+        elif node_type == 'bulletList':
+            latex_out = "\\begin{itemize}\n"
+            for child in content:
+                if child.get('type') == 'listItem':
+                    latex_out += "\\item " + self._process_list_item(child) + "\n"
+            latex_out += "\\end{itemize}\n"
+
+        elif node_type == 'orderedList':
+            latex_out = "\\begin{enumerate}\n"
+            for child in content:
+                if child.get('type') == 'listItem':
+                    latex_out += "\\item " + self._process_list_item(child) + "\n"
+            latex_out += "\\end{enumerate}\n"
+
+        elif node_type == 'blockquote':
+            text = ""
+            for child in content:
+                text += self.process_node(child)
+            latex_out = "\\begin{quote}\n" + text + "\\end{quote}\n"
+
+        elif node_type == 'codeBlock':
+            code = ""
+            for child in content:
+                if child.get('type') == 'text':
+                    code += child.get('text', '')
+            # Use listings
+            latex_out = "\\begin{lstlisting}\n" + code + "\n\\end{lstlisting}\n"
+
+        elif node_type == 'horizontalRule':
+            latex_out = "\n\\hrulefill\n\n"
+
+        elif node_type == 'image':
+            src = attrs.get('src')
+            if src:
+                self.image_counter += 1
+                ext = 'png'
+                if src.lower().endswith('.jpg') or src.lower().endswith('.jpeg'): ext = 'jpg'
+                
+                filename = f"image_{self.image_counter}.{ext}"
+                stream = get_image_stream(src)
+                
+                if stream:
+                    self.images.append((filename, stream))
+                    caption = escape_latex(attrs.get('alt', ''))
+                    latex_out = f"""
+\\begin{{figure}}[h]
+    \\centering
+    \\includegraphics[width=0.8\\textwidth]{{assets/{filename}}}
+    \\caption{{{caption}}}
+\\end{{figure}}
+"""
+        
+        elif node_type == 'table':
+            # Simplified table handling
+            rows = content
+            if rows:
+                latex_out = "\\begin{table}[h]\n\\centering\n"
+                
+                # Analyze columns
+                first_row = rows[0].get('content', [])
+                num_cols = len(first_row)
+                col_def = "| " + " | ".join(["l"] * num_cols) + " |"
+                
+                latex_out += f"\\begin{{tabular}}{{{col_def}}}\n\\hline\n"
+                
+                for row_idx, row in enumerate(rows):
+                    cells = row.get('content', [])
+                    row_texts = []
+                    for cell in cells:
+                         cell_content = cell.get('content', [])
+                         # Flatten cell content (usually paragraphs)
+                         c_text = ""
+                         for block in cell_content:
+                             c_text += self.process_inline(block.get('content', []))
+                         row_texts.append(c_text)
+                    
+                    latex_out += " & ".join(row_texts) + " \\\\\n\\hline\n"
+                
+                latex_out += "\\end{tabular}\n\\end{table}\n"
+
+        return latex_out
+
+    def _process_list_item(self, node):
+        # List items usually contain paragraphs. We need to strip paragraph breaks for basic items
+        # or handle nested blocks properly.
+        content = node.get('content', [])
+        result = ""
+        for child in content:
+            # We strip the double newline from paragraph process for list items to look tighter
+            result += self.process_node(child).strip() + " "
+        return result
+
+    def generate_full_tex(self, title):
+        body = self.process_node(self.content if self.content.get('type') == 'doc' else {'type': 'doc', 'content': []})
+        
+        preamble = r"""% !TeX program = xelatex
+\documentclass{article}
+\usepackage[UTF8]{ctex}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[normalem]{ulem}
+\usepackage{geometry}
+\geometry{a4paper, scale=0.8}
+\usepackage{booktabs}
+\usepackage{float}
+
+% Code highlighting style
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegray},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\title{""" + escape_latex(title) + r"""}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+"""
+        return preamble + body + "\n\\end{document}"
+
+
+@export_bp.route('/latex', methods=['POST'])
+def export_latex():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        title = data.get('title', 'Document')
+        # Handle both list and dict content input for robustness
+        raw_content = data.get('content', {})
+        if isinstance(raw_content, list):
+             editor_json = {'type': 'doc', 'content': raw_content}
+        else:
+             editor_json = raw_content
+
+        styles_list = data.get('styles', [])
+
+        exporter = LatexExporter(editor_json, styles_list)
+        tex_content = exporter.generate_full_tex(title)
+        
+        # Create ZIP file in memory
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w') as zf:
+            # Add main.tex
+            zf.writestr('main.tex', tex_content)
+            
+            # Add images
+            if exporter.images:
+                for filename, stream in exporter.images:
+                    # stream is open file or BytesIO
+                    if isinstance(stream, io.BytesIO):
+                        data = stream.getvalue()
+                    else:
+                        data = stream.read()
+                        stream.close()
+                    zf.writestr(f'assets/{filename}', data)
+        
+        memory_file.seek(0)
+        
+        safe_title = "".join([c for c in title if c.isalpha() or c.isdigit() or c==' ']).strip()
+        if not safe_title: safe_title = "document"
+
+        return send_file(
+            memory_file,
+            as_attachment=True,
+            download_name=f"{safe_title}_latex.zip",
+            mimetype='application/zip'
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 

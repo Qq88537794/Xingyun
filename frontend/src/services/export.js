@@ -337,11 +337,36 @@ export class ExportService {
   }
 
   /**
-   * 导出为 LaTeX（需要后端）
-   * @placeholder 预留接口
+   * 导出为 LaTeX (zip with images)
    */
-  static async toLaTeX(json, wsService) {
-    // TODO: 后端实现
-    throw new Error('LaTeX 导出需要后端支持')
+  static async toLaTeX(json, title = 'document', styles = []) {
+    try {
+      const contentPayload = (json.type === 'doc') ? json : { type: 'doc', content: json.content || json }
+      const stylesPlain = Array.isArray(styles) ? JSON.parse(JSON.stringify(styles)) : []
+
+      const response = await api.post('/export/latex', {
+        title: title,
+        content: contentPayload,
+        styles: stylesPlain
+      }, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const url = window.URL.createObjectURL(blob)
+      
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${title}_latex.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      
+      return { success: true }
+    } catch (error) {
+       console.error('LaTeX export failed:', error)
+       throw new Error('LaTeX 导出失败: ' + (error.response?.data?.error || error.message))
+    }
   }
 }

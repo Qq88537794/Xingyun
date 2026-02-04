@@ -227,8 +227,13 @@ const handleExport = async (format) => {
       }
       break
     case 'tex':
-      // 需要后端支持
-      toast.warning(`${format.toUpperCase()} 导出需要后端支持`)
+      try {
+        const fileName = props.projectName ? props.projectName : 'document'
+        await ExportService.toLaTeX(props.editorJson, fileName, props.styles)
+        toast.success('LaTeX 导出成功')
+      } catch (err) {
+        toast.error('导出失败: ' + err.message)
+      }
       break
   }
 }
