@@ -148,17 +148,33 @@ export class ExportService {
    * 导出为 Word (.docx)
    * 调用后端 API
    */
-  static async toWord(json, title = 'document') {
+  static async toWord(json, title = 'document', styles = []) {
+    // Debug info
+    console.log('ExportService.toWord styles:', styles)
+    
+    // Ensure we are sending a plain array
+    const stylesPlain = Array.isArray(styles) ? JSON.parse(JSON.stringify(styles)) : []
+    
+    if (stylesPlain.length === 0) {
+        console.warn('ExportService: Styles list is empty, export will use default Word styles.')
+    }
+
     try {
+      // Fix: Ensure we pass the full TipTap document object (dict), not the content array (list).
+      // Backend expects a dict with 'type' and 'content'.
+      const contentPayload = (json.type === 'doc') ? json : { type: 'doc', content: json.content || json }
+
       const response = await api.post('/export/docx', {
         title: title,
-        content: json.content || json // Ensure we pass the TipTap content
+        content: contentPayload, 
+        styles: stylesPlain // Pass custom styles
       }, {
         responseType: 'blob'
       })
       
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       link.setAttribute('download', title.endsWith('.docx') ? title : `${title}.docx`)
@@ -309,39 +325,7 @@ export class ExportService {
     return true
   }
 
-  /**
-   * 导出为 Word（调用后端）
-   */
-  static async toWord(json, filename = 'document.docx') {
-    try {
-      const response = await api.post('/export/docx', {
-        content: json,
-        title: filename.replace('.docx', '')
-      }, {
-        responseType: 'blob'
-      })
 
-      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
-      const url = window.URL.createObjectURL(blob)
-      
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-      
-      return true
-    } catch (error) {
-           console.error('Export docx error', error);
-      throw new Error('Word 导出失败: ' + (error.response?.data?.error || error.message))
-    }
-  }
-
-
-  static downloadWord(fileBlob, filename = 'document.docx') {
-  }
 
   /**
    * 导出为 PDF（需要后端）

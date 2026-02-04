@@ -207,7 +207,11 @@ const handleExport = async (format) => {
     case 'docx':
       try {
         const fileName = props.projectName ? `${props.projectName}.docx` : 'document.docx'
-        await ExportService.toWord(props.editorJson, fileName)
+        // console.log('Exporting docx with styles:', props.styles)
+        if (!props.styles || props.styles.length === 0) {
+            toast.info('提示: 未检测到自定义样式，将使用默认样式')
+        }
+        await ExportService.toWord(props.editorJson, fileName, props.styles)
         toast.success('Word 导出成功')
       } catch (err) {
         toast.error('导出失败: ' + err.message)
