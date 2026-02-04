@@ -216,8 +216,8 @@ export class ExportService {
         return this.processNodes(node.content, listLevel)
 
       case 'blockquote':
-        const quoteContent = this.processNodes(node.content)
-        return quoteContent.split('\n').map(line => line ? `> ${line}` : '>').join('\n') + '\n'
+        const quoteContent = this.processNodes(node.content).trim() // Trim to remove trailing newlines from paragraphs
+        return quoteContent.split('\n').map(line => line ? `> ${line}` : '>').join('\n') + '\n\n'
 
       case 'codeBlock':
         const lang = node.attrs?.language || ''
@@ -255,6 +255,11 @@ export class ExportService {
   static processInline(nodes) {
     if (!nodes) return ''
     return nodes.map(node => {
+      // Handle Hard Break (Shift+Enter)
+      if (node.type === 'hardBreak') {
+        return '\n'
+      }
+
       let text = node.text || ''
       
       if (node.marks) {
@@ -268,6 +273,9 @@ export class ExportService {
               break
             case 'underline':
               text = `<u>${text}</u>`
+              break
+            case 'strike':
+              text = `~~${text}~~`
               break
             case 'code':
               text = `\`${text}\``
