@@ -27,6 +27,7 @@ class Config:
     
     # File upload configuration
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    EDITOR_IMAGE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'editor_images')
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size
     
     # Allowed file extensions

@@ -60,7 +60,6 @@
               <button @click="handleExport('pdf')" class="export-menu-item">
                 <FileText :size="16" class="text-red-500" />
                 <span>PDF (.pdf)</span>
-                <span class="ml-auto text-xs text-gray-400">需后端</span>
               </button>
               <button @click="handleExport('tex')" class="export-menu-item">
                 <FileCode :size="16" class="text-green-500" />
@@ -96,7 +95,7 @@
         <button 
           @click="$emit('toggle-chat-panel')"
           :class="['btn-toggle', showChatPanel ? 'active' : '']"
-          title="AI 对话"
+          title="侧边栏"
         >
           <PanelRight :size="16" />
         </button>
@@ -107,7 +106,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft } from 'lucide-vue-next'
+import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft, MessageSquare } from 'lucide-vue-next'
 import { ExportService } from '../services/export'
 import { useToast } from '../composables/useToast'
 
@@ -123,6 +122,14 @@ const props = defineProps({
   editorJson: {
     type: Object,
     default: null
+  },
+  editorHtml: {
+    type: String,
+    default: ''
+  },
+  styles: {
+    type: Array,
+    default: () => []
   },
   projectName: {
     type: String,
@@ -198,10 +205,35 @@ const handleExport = async (format) => {
       break
       
     case 'docx':
+      try {
+        const fileName = props.projectName ? `${props.projectName}.docx` : 'document.docx'
+        // console.log('Exporting docx with styles:', props.styles)
+        if (!props.styles || props.styles.length === 0) {
+            toast.info('提示: 未检测到自定义样式，将使用默认样式')
+        }
+        await ExportService.toWord(props.editorJson, fileName, props.styles)
+        toast.success('Word 导出成功')
+      } catch (err) {
+        toast.error('导出失败: ' + err.message)
+      }
+      break
     case 'pdf':
+      try {
+        const fileName = props.projectName ? props.projectName : 'document'
+        // Use styles prop passed from App.vue
+        await ExportService.exportToPdf(props.editorHtml, fileName, props.styles)
+      } catch (err) {
+        toast.error('PDF导出失败: ' + err.message)
+      }
+      break
     case 'tex':
-      // 需要后端支持
-      toast.warning(`${format.toUpperCase()} 导出需要后端支持`)
+      try {
+        const fileName = props.projectName ? props.projectName : 'document'
+        await ExportService.toLaTeX(props.editorJson, fileName, props.styles)
+        toast.success('LaTeX 导出成功')
+      } catch (err) {
+        toast.error('导出失败: ' + err.message)
+      }
       break
   }
 }
