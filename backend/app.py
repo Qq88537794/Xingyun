@@ -32,7 +32,7 @@ def init_llm():
         configs.append({
             'provider': 'zhipu',
             'api_key': zhipu_key,
-            'model_name': 'glm-4-flash',
+            'model_name': 'glm-4.5-flash',  # 修复：使用正确的模型名称
             'instance_name': 'zhipu_default'
         })
     

@@ -101,8 +101,11 @@ class ZhipuLLM(BaseLLM):
             "stream": False
         }
         
+        # 设置max_tokens，如果没有指定则使用8192
         if max_tokens:
             payload["max_tokens"] = max_tokens
+        else:
+            payload["max_tokens"] = 8192  # 默认使用较大的值
         
         # 添加额外参数
         for key in ['top_p', 'do_sample', 'stop']:
@@ -177,8 +180,11 @@ class ZhipuLLM(BaseLLM):
             "stream": True
         }
         
+        # 设置max_tokens，如果没有指定则使用8192
         if max_tokens:
             payload["max_tokens"] = max_tokens
+        else:
+            payload["max_tokens"] = 8192  # 默认使用较大的值
         
         url = f"{self.api_base}/chat/completions"
         

@@ -81,19 +81,32 @@ class AIResponse:
     # 是否需要用户确认操作
     requires_confirmation: bool = True
     
+    # 是否已自动执行（auto_execute模式下为True）
+    auto_executed: bool = False
+    
+    # 自动执行后的文档内容（仅在auto_execute=True时返回）
+    executed_content: Optional[str] = None
+    
     # 额外元数据
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             'message': self.message,
             'operations': [op.to_dict() for op in self.operations],
             'sources': self.sources,
             'session_id': self.session_id,
             'tokens_used': self.tokens_used,
             'requires_confirmation': self.requires_confirmation,
+            'auto_executed': self.auto_executed,
             'metadata': self.metadata
         }
+        
+        # 只在自动执行时返回executed_content
+        if self.auto_executed and self.executed_content is not None:
+            result['executed_content'] = self.executed_content
+        
+        return result
     
     def has_operations(self) -> bool:
         """是否包含文件操作"""
@@ -161,6 +174,9 @@ class AIRequest:
     # 是否启用Agent模式（工具调用循环）
     enable_agent: bool = False
     
+    # 是否自动执行文档操作（无需用户确认）
+    auto_execute: bool = False
+    
     # 是否启用流式响应
     stream: bool = False
     
@@ -179,6 +195,7 @@ class AIRequest:
             selection_range=data.get('selection_range'),
             enable_rag=data.get('enable_rag'),
             enable_agent=data.get('enable_agent', False),
+            auto_execute=data.get('auto_execute', False),
             stream=data.get('stream', False),
             options=data.get('options', {})
         )
@@ -188,88 +205,43 @@ class AIRequest:
 
 SYSTEM_PROMPT_TEMPLATE = """你是行云智能文档工作站的AI助手，专注于帮助用户进行文档创作和内容优化。
 
-## 你的能力
-1. 回答用户问题，提供专业的建议
-2. 根据用户需求生成文档大纲
-3. 扩写和丰富文档内容
-4. 生成内容摘要
-5. 进行风格迁移和改写
-6. 语法检查和修正
+## 核心能力
+- 回答问题，提供专业建议
+- 生成文档大纲、扩写内容、生成摘要
+- 风格迁移、语法检查
 
-## 响应格式要求
-你的回复必须严格按照以下JSON格式输出：
+## 回复要求
+直接用清晰的中文回答，不要使用JSON、代码块等技术格式。
 
-```json
-{
-    "message": "对用户的说明和解释",
-    "operation": {
-        "type": "操作类型",
-        "content": "操作内容"
-    }
-}
-```
+## 大纲生成要求（非常重要）
+生成大纲时必须简洁清晰，格式如下：
 
-### 操作类型说明
-- `none`: 仅回复，不执行文档操作
-- `generate_outline`: 生成大纲
-- `expand_content`: 扩写内容
-- `summarize`: 生成摘要
-- `style_transfer`: 风格迁移
-- `grammar_check`: 语法检查并提供修正
-- `insert_text`: 在指定位置插入文本
-- `replace_text`: 替换选中的文本
+1. 主标题
+1.1 子标题
+1.2 子标题
+2. 主标题
+2.1 子标题
+2.2 子标题
 
-### 示例响应
-
-用户请求生成大纲时：
-```json
-{
-    "message": "我已为您生成了关于'人工智能'的文档大纲，包含5个主要章节。您可以根据需要进行调整。",
-    "operation": {
-        "type": "generate_outline",
-        "content": "1. 引言\\n1.1 背景介绍\\n..."
-    }
-}
-```
-
-用户普通提问时：
-```json
-{
-    "message": "人工智能是计算机科学的一个分支...",
-    "operation": {
-        "type": "none",
-        "content": ""
-    }
-}
-```
+**要求：**
+- 标题要简洁、概括性强，直接提炼核心要点
+- 层级不要超过3层（如 1.1.1）
+- 不要添加任何额外标记、注释或原文引用
+- 准确归纳文档内容，避免过于细碎
+- 每个标题应该能代表文档中的一个主要段落或章节
 
 {% if has_knowledge_base %}
-## 知识库信息
-用户已上传相关文档到知识库，在回答时请参考以下检索到的内容：
-
+## 参考资料
 {{rag_context}}
-
-请基于上述资料回答问题，必要时引用来源。如果资料中没有相关信息，请明确说明。
 {% endif %}
 
 {% if document_content %}
-## 当前文档内容
-用户正在编辑的文档内容如下：
-
+## 当前文档
 {{document_content}}
-
 {% if selected_text %}
-用户选中的文本：
-{{selected_text}}
+选中文本：{{selected_text}}
 {% endif %}
 {% endif %}
-
-## 重要提示
-1. 始终使用中文回复
-2. 回复必须是有效的JSON格式
-3. message字段用于向用户解释你的回复和建议
-4. operation字段包含具体的文档操作内容
-5. 如果用户没有明确要求文档操作，type设为"none"
 """
 
 
@@ -280,52 +252,146 @@ def build_system_prompt(
     selected_text: str = None
 ) -> str:
     """构建系统提示词"""
+    import re
+    from .utils.document_compressor import compress_document_for_outline
+    
     prompt = SYSTEM_PROMPT_TEMPLATE
     
-    # 简单的模板替换
-    prompt = prompt.replace("{% if has_knowledge_base %}", "" if has_knowledge_base else "<!--")
-    prompt = prompt.replace("{% endif %}", "" if has_knowledge_base else "-->")
-    prompt = prompt.replace("{{rag_context}}", rag_context or "")
+    # 处理 has_knowledge_base 条件
+    if has_knowledge_base:
+        prompt = prompt.replace("{% if has_knowledge_base %}", "")
+        prompt = prompt.replace("{{rag_context}}", rag_context or "")
+        # 移除第一个 {% endif %}
+        prompt = prompt.replace("{% endif %}", "", 1)
+    else:
+        # 移除整个 knowledge_base 块
+        prompt = re.sub(r'\{% if has_knowledge_base %\}.*?\{% endif %\}', '', prompt, flags=re.DOTALL)
     
+    # 处理 document_content 条件
     if document_content:
         prompt = prompt.replace("{% if document_content %}", "")
-        prompt = prompt.replace("{{document_content}}", document_content[:2000])  # 限制长度
+        
+        # 使用智能压缩，支持更长文档
+        # 对于超长文档，会提取标题和关键内容，保留完整结构
+        compressed_content = compress_document_for_outline(document_content, max_length=12000)
+        prompt = prompt.replace("{{document_content}}", compressed_content)
+        
+        # 处理 selected_text 条件
         if selected_text:
             prompt = prompt.replace("{% if selected_text %}", "")
             prompt = prompt.replace("{{selected_text}}", selected_text)
-            prompt = prompt.replace("{% endif %}", "")
+            # 移除 selected_text 的 {% endif %}
+            prompt = prompt.replace("{% endif %}", "", 1)
         else:
-            # 移除selected_text相关内容
-            import re
+            # 移除 selected_text 块
             prompt = re.sub(r'\{% if selected_text %\}.*?\{% endif %\}', '', prompt, flags=re.DOTALL)
+        
+        # 移除 document_content 的 {% endif %}
+        prompt = prompt.replace("{% endif %}", "", 1)
     else:
-        # 移除document_content相关内容
-        import re
+        # 移除整个 document_content 块
         prompt = re.sub(r'\{% if document_content %\}.*?\{% endif %\}', '', prompt, flags=re.DOTALL)
+    
+    # 清理可能残留的模板标记
+    prompt = re.sub(r'\{%.*?%\}', '', prompt)
+    prompt = re.sub(r'\{\{.*?\}\}', '', prompt)
     
     return prompt
 
 
 def parse_ai_response(raw_response: str) -> tuple:
     """
-    解析AI的JSON响应
+    解析AI的响应，识别操作类型
+    
+    Args:
+        raw_response: AI的原始回复文本
     
     Returns:
         (message, operation_type, operation_content)
+        - message: 显示给用户的消息（已清理原文标记）
+        - operation_type: 操作类型
+        - operation_content: 操作内容（保留原文标记用于定位）
     """
+    # 清理响应文本
+    message = raw_response.strip()
+    
+    # 移除可能的JSON代码块标记
+    if message.startswith('```json'):
+        message = message[7:]
+    if message.startswith('```'):
+        message = message[3:]
+    if message.endswith('```'):
+        message = message[:-3]
+    message = message.strip()
+    
+    # 尝试解析JSON格式（兼容旧格式）
     try:
-        # 尝试提取JSON
         import re
-        json_match = re.search(r'\{[\s\S]*\}', raw_response)
+        json_match = re.search(r'\{[\s\S]*\}', message)
         if json_match:
             data = json.loads(json_match.group())
-            message = data.get('message', raw_response)
-            operation = data.get('operation', {})
-            op_type = operation.get('type', 'none')
-            op_content = operation.get('content', '')
-            return message, op_type, op_content
-    except json.JSONDecodeError:
+            if 'message' in data and 'operation' in data:
+                # 旧的JSON格式
+                msg = data.get('message', message)
+                operation = data.get('operation', {})
+                op_type = operation.get('type', 'none')
+                op_content = operation.get('content', '')
+                return msg, op_type, op_content
+    except (json.JSONDecodeError, Exception):
         pass
     
-    # 解析失败，返回原始内容
-    return raw_response, 'none', ''
+    # 新格式：纯文本，通过关键词识别操作类型
+    op_type = 'none'
+    op_content = ''
+    
+    # 检测是否生成了大纲（更严格的判断）
+    # 只有明确包含"大纲"关键词时才识别为生成大纲操作
+    if ('大纲' in message and any(keyword in message for keyword in ['生成', '如下', '：', ':'])):
+        op_type = 'generate_outline'
+        # 提取大纲内容（从"生成的大纲"或"大纲："之后的内容）
+        import re
+        outline_match = re.search(r'(?:生成的大纲[：:]\s*\n|大纲如下[：:]\s*\n|大纲[：:]\s*\n)([\s\S]+)', message)
+        if outline_match:
+            op_content = outline_match.group(1).strip()
+        else:
+            # 如果没有明确标记，尝试提取所有带编号的行
+            lines = message.split('\n')
+            outline_lines = []
+            for line in lines:
+                # 匹配 "1. ", "1.1 ", "一、", "（一）" 等格式
+                if re.match(r'^\s*(\d+\.|\d+\.\d+|\d+\.\d+\.\d+|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）)', line):
+                    outline_lines.append(line)
+            if outline_lines:
+                op_content = '\n'.join(outline_lines)
+        
+        # 清理大纲内容，移除任何残留的标记
+        op_content = re.sub(r'\s*@@SOURCE:"[^"]*"@@', '', op_content)
+        op_content = re.sub(r'\s*\(原文[:：]\s*["\'""][^"\'""]*["\'"]\s*\)', '', op_content)
+        
+        # 为显示创建清理后的消息
+        display_message = re.sub(r'\s*@@SOURCE:"[^"]*"@@', '', message)
+        display_message = re.sub(r'\s*\(原文[:：]\s*["\'""][^"\'""]*["\'"]\s*\)', '', display_message)
+        
+        return display_message, op_type, op_content
+    
+    # 检测是否进行了扩写
+    elif '扩写' in message or '扩展' in message or '详细阐述' in message:
+        op_type = 'expand_content'
+        op_content = message
+    
+    # 检测是否生成了摘要
+    elif '摘要' in message or '总结' in message:
+        op_type = 'summarize'
+        op_content = message
+    
+    # 检测是否进行了风格转换
+    elif '风格' in message or '改写' in message or '转换' in message:
+        op_type = 'style_transfer'
+        op_content = message
+    
+    # 检测是否进行了语法检查
+    elif '语法' in message or '错误' in message or '修正' in message:
+        op_type = 'grammar_check'
+        op_content = message
+    
+    return message, op_type, op_content

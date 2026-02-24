@@ -6,3 +6,4 @@ from .user import User
 from .folder import Folder
 from .project import Project
 from .resource import ProjectResource
+from .ai_chat_history import AIChatHistory

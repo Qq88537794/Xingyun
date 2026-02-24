@@ -19,9 +19,13 @@
           <FilePlus :size="16" />
           <span>新建</span>
         </button>
-        <button @click="handleOpen" class="btn-secondary">
+        <button @click="handleOpen" class="btn-secondary" title="打开项目文档 (JSON格式)">
           <FolderOpen :size="16" />
           <span>打开</span>
+        </button>
+        <button @click="handleImport" class="btn-secondary" title="导入外部文档 (Word/PDF/Markdown/文本)">
+          <Upload :size="16" />
+          <span>导入</span>
         </button>
         <button @click="$emit('save-document')" class="btn-secondary">
           <Save :size="16" />
@@ -86,9 +90,9 @@
       <!-- 视图切换 -->
       <div class="flex items-center border border-gray-200 rounded-lg">
         <button 
-          @click="$emit('toggle-material-panel')"
-          :class="['btn-toggle', showMaterialPanel ? 'active' : '']"
-          title="材料面板"
+          @click="$emit('toggle-workspace-panel')"
+          :class="['btn-toggle', showWorkspacePanel ? 'active' : '']"
+          title="工作区"
         >
           <PanelLeft :size="16" />
         </button>
@@ -106,12 +110,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft, MessageSquare } from 'lucide-vue-next'
+import { FilePlus, FolderOpen, Save, Download, ChevronDown, FileText, FileCode, History, Settings, PanelLeft, PanelRight, ArrowLeft, MessageSquare, Upload } from 'lucide-vue-next'
 import { ExportService } from '../services/export'
 import { useToast } from '../composables/useToast'
 
 const props = defineProps({
-  showMaterialPanel: {
+  showWorkspacePanel: {
     type: Boolean,
     default: true
   },
@@ -141,6 +145,7 @@ const emit = defineEmits([
   'new-document', 
   'save-document', 
   'open-document',
+  'import-document',
   'toggle-material-panel',
   'toggle-chat-panel',
   'show-snapshots',
@@ -183,6 +188,10 @@ const handleOpen = async () => {
       toast.error('打开失败: ' + result.error)
     }
   }
+}
+
+const handleImport = () => {
+  emit('import-document')
 }
 
 const handleExport = async (format) => {

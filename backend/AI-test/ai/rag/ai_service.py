@@ -186,7 +186,7 @@ class AIService:
         llm = factory.get_llm()
         
         messages = context.get_messages_for_llm()
-        response = llm.chat(messages)
+        response = llm.chat(messages, max_tokens=8192)  # 明确指定max_tokens
         
         # 解析响应
         message, op_type, op_content = parse_ai_response(response.content)
@@ -244,7 +244,8 @@ class AIService:
         # 构建系统提示词
         system_prompt = self._build_agent_system_prompt(
             rag_context=rag_context,
-            selected_text=request.selected_text
+            selected_text=request.selected_text,
+            auto_execute=request.auto_execute
         )
         
         # 创建LLM调用函数
@@ -282,15 +283,24 @@ class AIService:
         
         # 转换Agent结果为AIResponse
         operations = []
+        executed_content = None
+        auto_executed = False
         
         # 检查是否有文档修改
         if doc_provider.has_modifications():
+            modified_content = doc_provider.get_modified_content()
+            
             operations.append(FileOperation(
                 operation_type=OperationType.REPLACE,
                 target_file=request.document_id,
-                content=doc_provider.get_modified_content(),
+                content=modified_content,
                 metadata={"agent_tool_calls": len(result.tool_calls)}
             ))
+            
+            # 如果启用自动执行，直接返回修改后的内容
+            if request.auto_execute:
+                executed_content = modified_content
+                auto_executed = True
         
         return AIResponse(
             message=result.message,
@@ -298,7 +308,9 @@ class AIService:
             sources=sources,
             session_id=session_id,
             tokens_used=result.total_tokens,
-            requires_confirmation=len(operations) > 0,
+            requires_confirmation=not auto_executed,  # 自动执行时不需要确认
+            auto_executed=auto_executed,
+            executed_content=executed_content,
             metadata={
                 "agent_iterations": result.iterations,
                 "agent_tool_calls": [tc.to_dict() for tc in result.tool_calls]
@@ -308,7 +320,8 @@ class AIService:
     def _build_agent_system_prompt(
         self,
         rag_context: str = "",
-        selected_text: str = ""
+        selected_text: str = "",
+        auto_execute: bool = False
     ) -> str:
         """构建Agent系统提示词"""
         prompt_parts = [
@@ -327,19 +340,68 @@ class AIService:
             "4. 根据需求使用适当的工具完成任务",
             "5. 完成后向用户解释所做的操作",
             "",
+            "## 大纲生成特别要求（非常重要！）",
+            "当用户要求生成大纲时，你必须为每个大纲项标注原文片段，格式如下：",
+            "标题 (原文: \"文档中的实际文本片段\")",
+            "",
+            "原文片段要求：",
+            "- 从文档中精确摘录5-15个字",
+            "- 选择最能代表该章节的关键句子",
+            "- 确保原文片段在文档中唯一或容易定位",
+            "",
+            "生成大纲后，请在回复中包含完整的大纲内容，不要只说\"已生成\"而不显示内容。",
+            "",
+            "示例格式：",
+            "1. Python简介 (原文: \"Python是一种高级编程语言\")",
+            "2. 环境搭建 (原文: \"需要先搭建开发环境\")",
+            "  2.1 安装Python (原文: \"下载Python安装包\")",
+            "  2.2 配置环境 (原文: \"配置环境变量\")",
+            "",
             "## 注意事项",
             "- 对文档的修改需要谨慎，确保不会丢失重要内容",
-            "- 优先使用 edit_document 进行局部修改，而非 write_document 全量覆盖",
+            "- 优先使用 write_document 进行全量替换，确保修改完整准确",
             "- 在执行修改前，最好先读取文档确认当前状态",
         ]
+        
+        if auto_execute:
+            prompt_parts.extend([
+                "",
+                "## 【重要】自动执行模式 - 精确执行指令",
+                "当前处于自动执行模式，你的修改将直接应用到文档，无需用户确认。",
+                "",
+                "### 执行要求（必须严格遵守）：",
+                "1. **完整执行**：必须完整、彻底地执行用户的所有指令，不能遗漏任何部分",
+                "2. **精确执行**：严格按照用户的要求执行，不要自作主张或部分执行",
+                "3. **全面检查**：执行前先读取文档，执行后检查是否完全符合用户要求",
+                "4. **使用write_document**：对于全文修改，使用write_document工具一次性完成，确保不遗漏",
+                "",
+                "### 示例：",
+                "- 用户要求：\"将所有小写字母改为大写\"",
+                "  正确做法：读取文档 → 将文档中的每一个小写字母都转换为大写 → 使用write_document保存",
+                "  错误做法：只转换部分小写字母，或遗漏某些位置的小写字母",
+                "",
+                "- 用户要求：\"删除所有空行\"",
+                "  正确做法：读取文档 → 删除文档中的每一个空行 → 使用write_document保存",
+                "  错误做法：只删除部分空行",
+                "",
+                "### 执行后说明：",
+                "完成修改后，请清楚说明你做了什么修改，修改了多少处。"
+            ])
         
         if selected_text:
             prompt_parts.extend([
                 "",
                 "## 用户选中的文本",
+                "以下是用户在文档中选中的文本，用户的指令可能针对这段文本：",
                 f"```",
                 selected_text,
-                "```"
+                "```",
+                "",
+                "注意：如果用户的指令是针对选中文本的，你需要：",
+                "1. 先读取完整文档",
+                "2. 在文档中定位选中的文本",
+                "3. 对选中文本执行用户的指令",
+                "4. 使用write_document保存修改后的完整文档"
             ])
         
         if rag_context:

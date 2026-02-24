@@ -244,14 +244,19 @@ class PromptTemplate:
         )
 
 
-# 预定义模板 - 大纲生成
+# 预定义模板 - 大纲生成（优化版：带原文标注）
 OUTLINE_TEMPLATE = PromptTemplate(
     name="outline_generation",
-    description="根据主题生成文档大纲",
-    template="""你是一位专业的文档架构师。请根据以下信息生成详细的文档大纲。
+    description="根据主题生成文档大纲，并标注原文位置",
+    template="""你是一位专业的文档架构师。请根据以下文档内容生成详细的大纲。
 
+【文档内容】
+{{document_content}}
+
+{% if topic %}
 【主题】
 {{topic}}
+{% endif %}
 
 {% if context %}
 【参考资料】
@@ -263,25 +268,38 @@ OUTLINE_TEMPLATE = PromptTemplate(
 {{requirements}}
 {% endif %}
 
-【输出格式要求】
-- 使用层级编号（1. 1.1 1.1.1）
-- 每个章节需包含简要说明
-- 大纲层级不超过3层
-- 内容需要逻辑清晰、结构完整
+【输出格式要求 - 非常重要！】
+1. 使用层级编号（1. 1.1 1.1.1）
+2. 每个大纲项必须标注原文片段，格式：
+   标题 (原文: "文档中的实际文本片段")
+3. 原文片段要求：
+   - 从文档中精确摘录5-15个字
+   - 选择最能代表该章节的关键句子
+   - 确保原文片段在文档中唯一或容易定位
+4. 大纲层级不超过3层
+5. 内容需要逻辑清晰、结构完整
+
+【示例格式】
+1. Python简介 (原文: "Python是一种高级编程语言")
+2. 环境搭建 (原文: "需要先搭建开发环境")
+  2.1 安装Python (原文: "下载Python安装包")
+  2.2 配置环境 (原文: "配置环境变量")
+3. 基础语法 (原文: "变量不需要声明类型")
 
 {% if style %}
 【风格要求】
 {{style}}
 {% endif %}
 
-请生成大纲：""",
+请严格按照上述格式生成大纲，每个大纲项都必须包含 (原文: "...") 标注：""",
     variables=[
-        PromptVariable(name="topic", description="文档主题", required=True),
+        PromptVariable(name="document_content", description="文档内容", required=True),
+        PromptVariable(name="topic", description="文档主题", required=False),
         PromptVariable(name="context", description="参考资料", required=False),
         PromptVariable(name="requirements", description="具体要求", required=False),
         PromptVariable(name="style", description="风格要求", required=False),
     ],
-    tags=["outline", "structure", "planning"]
+    tags=["outline", "structure", "planning", "location"]
 )
 
 

@@ -92,12 +92,16 @@ def chat():
     }
     """
     try:
+        # 获取当前用户ID
+        current_user_id = get_jwt_identity()
+        
         data = request.get_json()
         user_message = data.get('message', '').strip()
         session_id = data.get('session_id') or str(uuid.uuid4())
         context = data.get('context', '')
         model = data.get('model')
         stream = data.get('stream', False)
+        project_id = data.get('project_id')  # 可选的项目ID
         
         if not user_message:
             return jsonify({
@@ -177,6 +181,22 @@ def chat():
             
             # 保存助手回复
             conv_context.add_message('assistant', response.content)
+            
+            # 保存到数据库历史记录
+            try:
+                from models import AIChatHistory
+                AIChatHistory.save_chat_history(
+                    user_id=current_user_id,
+                    request_type='chat',
+                    ai_response=response.content,
+                    user_message=user_message,
+                    project_id=project_id,
+                    session_id=session_id,
+                    tokens_used=response.usage.total_tokens if response.usage else 0
+                )
+            except Exception as e:
+                logger.error(f"保存聊天历史失败: {e}")
+                # 不影响主流程，继续返回结果
             
             return jsonify({
                 'code': 200,
@@ -310,8 +330,12 @@ def generate_outline():
     }
     """
     try:
+        # 获取当前用户ID
+        current_user_id = get_jwt_identity()
+        
         data = request.get_json()
         topic = data.get('topic', '').strip()
+        project_id = data.get('project_id')  # 可选的项目ID
         
         if not topic:
             return jsonify({
@@ -334,11 +358,55 @@ def generate_outline():
         
         response = llm.chat([{'role': 'user', 'content': prompt}])
         
+        # 去除重复的大纲内容
+        outline_content = response.content
+        
+        # 检测并移除重复的大纲（按行分割后去重）
+        lines = outline_content.split('\n')
+        seen_lines = set()
+        unique_lines = []
+        
+        for line in lines:
+            line_stripped = line.strip()
+            # 跳过空行
+            if not line_stripped:
+                unique_lines.append(line)
+                continue
+            
+            # 如果是大纲项（以数字或数字.数字开头）
+            if line_stripped and (line_stripped[0].isdigit() or line_stripped.startswith('#')):
+                # 检查是否已经见过这一行
+                if line_stripped not in seen_lines:
+                    seen_lines.add(line_stripped)
+                    unique_lines.append(line)
+                # 如果已经见过，跳过（去重）
+            else:
+                # 非大纲项，直接添加
+                unique_lines.append(line)
+        
+        # 重新组合
+        outline_content = '\n'.join(unique_lines)
+        
+        # 保存到数据库历史记录
+        try:
+            from models import AIChatHistory
+            AIChatHistory.save_chat_history(
+                user_id=current_user_id,
+                request_type='outline',
+                ai_response=outline_content,
+                user_message=f"生成大纲: {topic}",
+                project_id=project_id,
+                tokens_used=response.usage.total_tokens if response.usage else 0
+            )
+        except Exception as e:
+            logger.error(f"保存大纲生成历史失败: {e}")
+            # 不影响主流程
+        
         return jsonify({
             'code': 200,
             'message': 'success',
             'data': {
-                'outline': response.content,
+                'outline': outline_content,
                 'tokens_used': response.usage.total_tokens if response.usage else 0
             }
         })
@@ -367,8 +435,12 @@ def expand_content():
     }
     """
     try:
+        # 获取当前用户ID
+        current_user_id = get_jwt_identity()
+        
         data = request.get_json()
         content = data.get('content', '').strip()
+        project_id = data.get('project_id')  # 可选的项目ID
         
         if not content:
             return jsonify({
@@ -391,6 +463,21 @@ def expand_content():
         llm = factory.get_llm()
         
         response = llm.chat([{'role': 'user', 'content': prompt}])
+        
+        # 保存到数据库历史记录
+        try:
+            from models import AIChatHistory
+            AIChatHistory.save_chat_history(
+                user_id=current_user_id,
+                request_type='expand',
+                ai_response=response.content,
+                user_message=f"扩展内容: {content[:100]}...",
+                project_id=project_id,
+                tokens_used=response.usage.total_tokens if response.usage else 0
+            )
+        except Exception as e:
+            logger.error(f"保存内容扩展历史失败: {e}")
+            # 不影响主流程
         
         return jsonify({
             'code': 200,
@@ -1021,3 +1108,99 @@ def get_model_stats():
             'code': 500,
             'message': f'服务器错误: {str(e)}'
         }), 500
+
+
+# ============== AI聊天历史记录API ==============
+
+@ai_bp.route('/history', methods=['GET'])
+@jwt_required()
+def get_ai_history():
+    """
+    获取AI聊天历史记录
+    
+    Query Params:
+    - days: 查询最近N天的记录（默认3天）
+    - limit: 返回记录数量限制（默认100）
+    - request_type: 过滤请求类型（可选）
+    - project_id: 过滤项目ID（可选）
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        
+        days = int(request.args.get('days', 3))
+        limit = int(request.args.get('limit', 100))
+        request_type = request.args.get('request_type')
+        project_id = request.args.get('project_id')
+        
+        from models import AIChatHistory
+        
+        # 获取最近的历史记录
+        query = AIChatHistory.query.filter(AIChatHistory.user_id == current_user_id)
+        
+        # 时间过滤
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        query = query.filter(AIChatHistory.created_at >= cutoff_date)
+        
+        # 类型过滤
+        if request_type:
+            query = query.filter(AIChatHistory.request_type == request_type)
+        
+        # 项目过滤
+        if project_id:
+            query = query.filter(AIChatHistory.project_id == int(project_id))
+        
+        # 排序和限制
+        history = query.order_by(AIChatHistory.created_at.desc()).limit(limit).all()
+        
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'total': len(history),
+                'records': [h.to_dict() for h in history]
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"获取AI历史记录错误: {e}")
+        return jsonify({
+            'code': 500,
+            'message': f'服务器错误: {str(e)}'
+        }), 500
+
+
+@ai_bp.route('/history/cleanup', methods=['POST'])
+@jwt_required()
+def cleanup_ai_history():
+    """
+    清理旧的AI聊天历史记录
+    
+    Request Body:
+    {
+        "days": 3  // 保留最近N天的记录，删除更早的记录
+    }
+    """
+    try:
+        data = request.get_json()
+        days = data.get('days', 3)
+        
+        from models import AIChatHistory
+        
+        deleted_count = AIChatHistory.cleanup_old_records(days=days)
+        
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'deleted_count': deleted_count
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"清理AI历史记录错误: {e}")
+        return jsonify({
+            'code': 500,
+            'message': f'服务器错误: {str(e)}'
+        }), 500
+

@@ -349,7 +349,14 @@ class SearchDocumentTool(BaseTool):
 
 
 class GenerateOutlineTool(BaseTool):
-    """生成文档大纲"""
+    """生成文档大纲（增强版 - 包含原文映射）"""
+    
+    def __init__(self, document_provider: Callable[[str], Optional[str]] = None):
+        """
+        Args:
+            document_provider: 获取文档内容的函数 (doc_id) -> content
+        """
+        self._get_document = document_provider
     
     @property
     def name(self) -> str:
@@ -358,6 +365,7 @@ class GenerateOutlineTool(BaseTool):
     @property
     def description(self) -> str:
         return """根据主题和要求生成文档大纲结构。
+如果提供了document_id，将为每个大纲项标注对应的原文片段，以便精确定位。
 返回大纲后，用户可以决定是否应用到文档。"""
     
     @property
@@ -368,6 +376,10 @@ class GenerateOutlineTool(BaseTool):
                 "topic": {
                     "type": "string",
                     "description": "文档主题"
+                },
+                "document_id": {
+                    "type": "string",
+                    "description": "文档ID（可选，用于生成带原文映射的大纲）"
                 },
                 "requirements": {
                     "type": "string",
@@ -382,10 +394,15 @@ class GenerateOutlineTool(BaseTool):
             "required": ["topic"]
         }
     
-    def execute(self, topic: str, requirements: str = "", depth: int = 3, **kwargs) -> Dict[str, Any]:
+    def execute(self, topic: str, document_id: str = None, requirements: str = "", depth: int = 3, **kwargs) -> Dict[str, Any]:
+        # 如果提供了document_id，读取文档内容
+        document_content = None
+        if document_id and self._get_document:
+            document_content = self._get_document(document_id)
+        
         # 这个工具的实际执行需要调用LLM，这里返回一个标记
         # 实际的大纲生成在Agent循环中由LLM完成
-        return {
+        result = {
             "success": True,
             "type": "outline_request",
             "topic": topic,
@@ -393,6 +410,28 @@ class GenerateOutlineTool(BaseTool):
             "depth": depth,
             "message": "请基于以上参数生成大纲"
         }
+        
+        # 如果有文档内容，添加增强提示
+        if document_content:
+            result["document_content"] = document_content
+            result["enhanced_prompt"] = f"""
+请为以下文档生成大纲，并为每个大纲项标注对应的原文片段。
+
+文档内容：
+{document_content[:2000]}{'...' if len(document_content) > 2000 else ''}
+
+要求：
+1. 生成{depth}级大纲结构
+2. 每个大纲项后用括号标注原文关键句，格式：标题 (原文: "...")
+3. 原文片段应选择最能代表该大纲项的20-50字内容
+4. 优先使用文档中的实际标题或关键句
+
+示例格式：
+1. NAS的技术组成 (原文: "NAS系统主要由存储设备、网络接口和管理软件三部分组成")
+   1.1 存储设备 (原文: "存储设备包括硬盘阵列和RAID控制器")
+"""
+        
+        return result
 
 
 class ExpandContentTool(BaseTool):
@@ -562,7 +601,7 @@ def create_default_registry(
     registry.register(SearchDocumentTool(document_provider))
     
     # 注册内容生成工具
-    registry.register(GenerateOutlineTool())
+    registry.register(GenerateOutlineTool(document_provider))
     registry.register(ExpandContentTool())
     registry.register(SummarizeTool())
     

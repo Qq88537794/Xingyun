@@ -8,7 +8,7 @@
   <!-- 编辑器页面 -->
   <div v-else-if="currentView === 'editor'" class="app-container h-screen flex flex-col bg-gray-50">
     <TopBar 
-      :show-material-panel="showMaterialPanel"
+      :show-workspace-panel="showWorkspacePanel"
       :show-chat-panel="showChatPanel"
       :editor-json="editorJson"
       :editor-html="editorHtml"
@@ -17,7 +17,8 @@
       @new-document="handleNewDocument"  
       @save-document="handleSaveDocument"
       @open-document="handleOpenDocument"
-      @toggle-material-panel="showMaterialPanel = !showMaterialPanel"
+      @import-document="handleImportDocument"
+      @toggle-workspace-panel="showWorkspacePanel = !showWorkspacePanel"
       @toggle-chat-panel="showChatPanel = !showChatPanel"
       @show-snapshots="showSnapshotModal = true"
       @show-settings="showSettingsModal = true"
@@ -26,7 +27,7 @@
     
     <!-- 主内容区 -->
     <div class="flex flex-1 overflow-hidden">
-      <!-- 左侧边栏 - 材料管理 -->
+      <!-- 左侧边栏 - 工作区 -->
       <Transition
         enter-active-class="transition-all duration-200 ease-out"
         enter-from-class="!w-0 opacity-0"
@@ -36,16 +37,37 @@
         leave-to-class="!w-0 opacity-0"
       >
         <aside 
-            v-if="showMaterialPanel"
-            class="flex-shrink-0 flex relative border-r border-gray-200"
+            v-if="showWorkspacePanel"
+            class="flex-shrink-0 flex flex-col relative border-r border-gray-200 bg-white"
             :style="{ width: leftSidebarWidth + 'px' }"
         >
-            <MaterialPanel 
-              class="w-full h-full overflow-hidden"
-              :materials="materials"
-              @upload="handleUploadMaterial"
-              @remove="handleRemoveMaterial"
-            />
+            <!-- Header -->
+            <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="flex items-center space-x-2">
+                    <FolderOpen :size="16" class="text-blue-600" />
+                    <span class="text-sm font-medium text-gray-800">工作区</span>
+                </div>
+                <button 
+                  @click="showWorkspacePanel = false" 
+                  class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors"
+                >
+                    <X :size="14" />
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-hidden">
+                <WorkspacePanel 
+                  class="h-full w-full"
+                  :documents="workspaceDocuments"
+                  :active-document-id="activeDocumentId"
+                  @select-document="handleSelectDocument"
+                  @create-document="handleCreateDocument"
+                  @rename-document="handleRenameDocument"
+                  @delete-document="handleDeleteDocument"
+                />
+            </div>
+
             <!-- Resizer Handle -->
             <div 
                 class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-400 z-50 opacity-0 hover:opacity-100 transition-opacity translate-x-1/2"
@@ -55,7 +77,7 @@
       </Transition>
       
       <!-- 中间编辑区 -->
-      <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex flex-col overflow-hidden relative">
         <!-- 编辑器工具栏 -->
         <EditorToolbar 
           v-if="editor"
@@ -66,10 +88,76 @@
         />
         
         <!-- TipTap编辑器 -->
-        <div class="flex-1 overflow-auto bg-white">
-          <EditorContent :editor="editor" class="h-full" />
+        <div class="flex-1 overflow-auto bg-white relative">
+          <EditorContent 
+            :editor="editor" 
+            class="h-full"
+            @contextmenu.prevent="showCustomContextMenu"
+          />
+          
+          <!-- 自定义右键菜单 -->
+          <div
+            v-if="contextMenuVisible"
+            :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+            class="fixed bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-[9999] min-w-[160px]"
+            @click.stop
+          >
+            <button
+              @click="handleContextMenuAction('cut')"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+              :disabled="!hasSelection"
+              :class="{ 'opacity-50 cursor-not-allowed': !hasSelection }"
+            >
+              <span>✂️</span>
+              <span>剪切</span>
+              <span class="ml-auto text-xs text-gray-400">Ctrl+X</span>
+            </button>
+            <button
+              @click="handleContextMenuAction('copy')"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+              :disabled="!hasSelection"
+              :class="{ 'opacity-50 cursor-not-allowed': !hasSelection }"
+            >
+              <span>📋</span>
+              <span>复制</span>
+              <span class="ml-auto text-xs text-gray-400">Ctrl+C</span>
+            </button>
+            <button
+              @click="handleContextMenuAction('paste')"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+            >
+              <span>📄</span>
+              <span>粘贴</span>
+              <span class="ml-auto text-xs text-gray-400">Ctrl+V</span>
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button
+              @click="handleContextMenuAction('selectAll')"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-2"
+            >
+              <span>📝</span>
+              <span>全选</span>
+              <span class="ml-auto text-xs text-gray-400">Ctrl+A</span>
+            </button>
+          </div>
         </div>
       </div>
+          <!-- 点击提示覆盖层 - 已禁用，因为会干扰右键菜单 -->
+          <!-- 
+          <div
+            v-if="showClickPrompt"
+            @click.stop="handleEditorClick"
+            class="absolute inset-0 bg-blue-500 bg-opacity-10 backdrop-blur-sm flex items-center justify-center cursor-pointer z-50 animate-fade-in"
+            style="pointer-events: none;"
+          >
+            <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md mx-4 text-center animate-bounce-in" style="pointer-events: auto;" @click.stop="handleEditorClick">
+              <div class="text-6xl mb-4">👆</div>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">点击这里继续编辑</h3>
+              <p class="text-gray-600 mb-4">点击编辑器区域即可开始输入</p>
+              <div class="text-sm text-gray-500">或按任意键开始输入</div>
+            </div>
+          </div>
+          -->
       
       <!-- 右侧统一侧边栏 -->
       <Transition
@@ -101,14 +189,6 @@
                     <MessageSquare :size="16" />
                     <span>AI 助手</span>
                 </button>
-                <button 
-                  @click="activeSidebarTab = 'style'" 
-                  class="flex-1 py-3 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors duration-200"
-                  :class="activeSidebarTab === 'style' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'"
-                >
-                    <Paintbrush :size="16" />
-                    <span>样式编辑</span>
-                </button>
                 <button @click="showRightSidebar = false" class="px-3 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors border-l border-gray-200">
                     <X :size="16" />
                 </button>
@@ -118,21 +198,13 @@
             <div class="flex-1 overflow-hidden relative">
                  <ChatPanel 
                   v-show="activeSidebarTab === 'chat'"
-                  class="h-full w-full absolute inset-0"
+                  class="h-full w-full"
                   :messages="chatMessages"
                   :is-connected="connectionStatus === 'connected'"
                   :has-selection="hasSelection"
                   @send-message="handleSendMessage"
                   @insert-to-doc="handleInsertToDoc"
-                />
-
-                <StyleEditorPanel 
-                  v-show="activeSidebarTab === 'style'"
-                  class="h-full w-full absolute inset-0"
-                  :style-data="editingStyle"
-                  :system-fonts="systemFonts"
-                  @close="editingStyle = null; activeSidebarTab = 'chat'"
-                  @save="handleSaveStyle"
+                  @locate-in-doc="handleLocateInDoc"
                 />
             </div>
         </aside>
@@ -170,11 +242,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
-import { X, MessageSquare, Paintbrush } from 'lucide-vue-next' // Add icons
+import { X, MessageSquare, Paintbrush, FolderOpen } from 'lucide-vue-next' // Add icons
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
@@ -188,9 +260,9 @@ import { Color } from './extensions/Color'
 import ProjectsView from './views/ProjectsView.vue'
 import TopBar from './components/TopBar.vue'
 import MaterialPanel from './components/MaterialPanel.vue'
+import WorkspacePanel from './components/WorkspacePanel.vue'
 import EditorToolbar from './components/EditorToolbar.vue'
 import ChatPanel from './components/ChatPanel.vue'
-import StyleEditorPanel from './components/StyleEditorPanel.vue'
 import StatusBar from './components/StatusBar.vue'
 import SnapshotModal from './components/SnapshotModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
@@ -202,15 +274,25 @@ import { useWebSocketService } from './services/websocket'
 import { useToast } from './composables/useToast'
 import { getResources, uploadResourceFromPath, deleteResource } from './services/resources'
 import { uploadImage } from './services/image'
+import { WorkspaceService } from './services/workspace'
 import api from './services/api'
+
+// API基础URL - 直接指向后端服务器
+const API_BASE_URL = 'http://localhost:5000'
 
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
 const wsService = useWebSocketService()
 const toast = useToast()
 
+// 工作区服务
+const workspaceService = ref(null)
+const workspaceDocuments = ref([])
+const activeDocumentId = ref(null)
+
 // UI状态
-const showMaterialPanel = ref(true)
+const showWorkspacePanel = ref(true)
+const showMaterialPanel = ref(false)
 const showRightSidebar = ref(true) // Unified sidebar state
 const activeSidebarTab = ref('chat') // 'chat' | 'style'
 
@@ -390,10 +472,20 @@ const editor = useEditor({
     TableCell,
   ],
   content: '',
+  editable: true,
+  autofocus: false, // 禁用自动聚焦，手动控制
   editorProps: {
     attributes: {
       class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
+      tabindex: '0', // 确保编辑器可以通过tab键聚焦
+      oncontextmenu: 'return true;', // 明确允许右键菜单
     },
+    // 完全不处理contextmenu事件，让浏览器自然处理
+    // handleDOMEvents: {
+    //   contextmenu: (view, event) => {
+    //     return false
+    //   }
+    // },
     handlePaste: (view, event, slice) => {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items
         for (const item of items) {
@@ -634,6 +726,61 @@ const handleOpenDocument = (data) => {
   }
 }
 
+// 导入外部文档到工作区
+const handleImportDocument = async () => {
+  if (!workspaceService.value) {
+    toast.warning('工作区未初始化')
+    return
+  }
+
+  // 创建文件选择input
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.docx,.doc,.pdf,.md,.markdown,.txt,.text'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      toast.info('正在导入文档...')
+      
+      // 使用document-import服务导入
+      const { importDocument } = await import('./services/document-import.js')
+      const result = await importDocument(file, (progress, message) => {
+        console.log(`导入进度: ${progress}% - ${message}`)
+      })
+
+      if (result.success && result.content) {
+        // 创建新文档并保存内容
+        const docName = result.filename?.replace(/\.[^/.]+$/, '') || '导入的文档'
+        const newDoc = workspaceService.value.createDocument(docName)
+        
+        // 保存内容到新文档
+        workspaceService.value.saveDocument(newDoc.id, result.content)
+        
+        // 更新文档列表
+        workspaceDocuments.value = workspaceService.value.getAllDocuments()
+        
+        // 切换到新文档
+        activeDocumentId.value = newDoc.id
+        
+        // 更新编辑器
+        editor.value?.commands.setContent(result.content)
+        
+        toast.success(`已导入: ${docName}`)
+      } else {
+        toast.error(result.error || '导入失败')
+      }
+    } catch (error) {
+      console.error('导入文档失败:', error)
+      toast.error('导入文档失败: ' + error.message)
+    }
+  }
+
+  input.click()
+}
+
 // 材料管理
 const handleUploadMaterial = async () => {
   if (!window.electronAPI) {
@@ -836,6 +983,80 @@ const executeDocumentOperation = (operation) => {
   }
 }
 
+// 加载聊天历史记录
+const loadChatHistory = async (documentId) => {
+  console.log('=== 加载聊天历史记录 ===')
+  console.log('documentId:', documentId)
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.log('未找到token，跳过加载历史记录')
+      chatMessages.value = []
+      return
+    }
+    
+    const url = `${API_BASE_URL}/api/ai/history?days=3&limit=50&document_id=${documentId}`
+    console.log('请求URL:', url)
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    console.log('响应状态:', response.status)
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('响应数据:', data)
+      
+      if (data.code === 200 && data.data.records.length > 0) {
+        console.log(`找到 ${data.data.records.length} 条历史记录`)
+        
+        // 清空当前消息
+        chatMessages.value = []
+        
+        // 按时间排序（从旧到新）
+        const records = data.data.records.reverse()
+        
+        // 添加历史记录到消息列表
+        records.forEach(record => {
+          // 添加用户消息
+          if (record.user_message) {
+            chatMessages.value.push({
+              role: 'user',
+              content: record.user_message,
+              timestamp: record.created_at
+            })
+          }
+          
+          // 添加AI响应
+          chatMessages.value.push({
+            role: 'assistant',
+            content: record.ai_response,
+            timestamp: record.created_at
+          })
+        })
+        
+        console.log(`已加载 ${chatMessages.value.length} 条消息`)
+        toast.success(`已加载 ${records.length} 条历史对话`)
+      } else {
+        console.log('没有找到历史记录')
+        chatMessages.value = []
+      }
+    } else {
+      console.error('加载历史记录失败，状态码:', response.status)
+      chatMessages.value = []
+    }
+  } catch (error) {
+    console.error('加载历史记录失败:', error)
+    chatMessages.value = []
+  }
+  
+  console.log('=== 加载历史记录完成 ===')
+}
+
 // AI对话
 const handleSendMessage = async (message) => {
   chatMessages.value.push({
@@ -866,6 +1087,7 @@ const handleSendMessage = async (message) => {
       session_id: `project_${currentProjectId.value || 'default'}`,
       // 传递文档内容，让AI能够执行操作
       document_content: editor.value?.getText() || undefined,
+      document_id: activeDocumentId.value || undefined,  // 修正：使用activeDocumentId
       selected_text: selectedText || undefined,
       selection_range: hasSelection.value ? {
         start: editor.value.state.selection.from,
@@ -948,8 +1170,19 @@ const handleSendMessage = async (message) => {
             
             // 如果是仅显示的操作，将内容添加到消息中
             if (displayOnlyOperations.includes(op.operation_type) && op.content && op.content.trim()) {
-              const operationName = getOperationName(op.operation_type)
-              displayContent += `\n\n**${operationName}**:\n${op.content}`
+              // 检查message中是否已经包含了operation.content的内容
+              // 如果message很短（少于100字）且operation.content很长，说明内容主要在operation中
+              if (replyContent.length < 100 && op.content.length > 100) {
+                // 直接使用operation.content作为主要内容，不添加额外标记
+                displayContent = `${replyContent}\n\n${op.content}`
+              } else if (!replyContent.includes(op.content.substring(0, Math.min(50, op.content.length)))) {
+                // 如果message中不包含operation.content的开头部分，说明是分开的
+                // 检查是否已经在displayContent中（避免重复添加）
+                if (!displayContent.includes(op.content.substring(0, Math.min(50, op.content.length)))) {
+                  displayContent += `\n\n${op.content}`
+                }
+              }
+              // 否则，message中已经包含了完整内容，不需要重复添加
             }
             // 如果是需要执行的操作，执行文档修改
             else if (['replace_text', 'insert_text', 'delete_text', 'replace', 'format_text'].includes(op.operation_type)) {
@@ -1009,6 +1242,415 @@ const handleInsertToDoc = (content) => {
   }
 }
 
+// AI智能定位
+const tryAILocate = async (outlineTitle, documentText, fullOutlinePath = null) => {
+  try {
+    console.log('🤖 调用AI智能定位API...')
+    console.log('  - 大纲标题:', outlineTitle)
+    console.log('  - 完整路径:', fullOutlinePath)
+    console.log('  - 文档长度:', documentText.length)
+    
+    // 显示明显的加载提示（不自动关闭）
+    const loadingToastId = toast.info('🔍 AI智能定位中，请稍候...', 0)
+    
+    const requestBody = {
+      outline_title: outlineTitle,
+      document_text: documentText,
+      full_outline_path: fullOutlinePath,  // 传递完整路径
+      top_n: 3,
+      use_ai: true  // 使用AI语义匹配
+    }
+    
+    console.log('  - 请求体:', JSON.stringify(requestBody).substring(0, 200) + '...')
+    
+    const response = await fetch(`${API_BASE_URL}/api/ai/locate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+    
+    console.log('  - 响应状态:', response.status, response.statusText)
+    
+    // 关闭加载提示
+    toast.remove(loadingToastId)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('  - 响应错误:', errorText)
+      toast.error(`❌ AI定位失败: HTTP ${response.status}`, 5000)
+      throw new Error(`HTTP ${response.status}: ${errorText}`)
+    }
+    
+    const result = await response.json()
+    console.log('  - 响应数据:', result)
+    
+    if (result.success && result.matches && result.matches.length > 0) {
+      const bestMatch = result.matches[0]
+      const method = result.method === 'ai_semantic' ? 'AI语义匹配' : '关键词匹配'
+      
+      console.log(`✅ ${method}找到匹配!`)
+      console.log('  - 匹配分数:', bestMatch.score.toFixed(2))
+      console.log('  - 位置:', bestMatch.position)
+      console.log('  - 长度:', bestMatch.length)
+      console.log('  - 文本:', bestMatch.text.substring(0, 50) + '...')
+      if (bestMatch.reason) {
+        console.log('  - 原因:', bestMatch.reason)
+      }
+      
+      // 使用AI找到的位置进行定位
+      if (editor.value) {
+        editor.value
+          .chain()
+          .focus()
+          .setTextSelection({
+            from: bestMatch.position,
+            to: bestMatch.position + bestMatch.length
+          })
+          .run()
+        
+        // 滚动到可见区域
+        nextTick(() => {
+          const editorElement = document.querySelector('.ProseMirror')
+          if (editorElement) {
+            const selection = window.getSelection()
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0)
+              const rect = range.getBoundingClientRect()
+              const editorRect = editorElement.getBoundingClientRect()
+              const scrollTop = editorElement.scrollTop + rect.top - editorRect.top - (editorRect.height / 2) + (rect.height / 2)
+              
+              editorElement.scrollTo({
+                top: scrollTop,
+                behavior: 'smooth'
+              })
+            }
+          }
+        })
+        
+        // 显示明显的成功提示
+        const methodIcon = result.method === 'ai_semantic' ? '🤖' : '🔍'
+        const methodName = result.method === 'ai_semantic' ? 'AI语义' : '关键词'
+        const matchPercent = (bestMatch.score * 100).toFixed(0)
+        
+        toast.success(`${methodIcon} ${methodName}定位成功！(匹配度: ${matchPercent}%)`, 3000)
+      }
+    } else {
+      console.warn('❌ AI未找到匹配')
+      console.warn('  - 响应结果:', result)
+      const method = result.method === 'ai_semantic' ? 'AI语义匹配' : '关键词匹配'
+      const errorMsg = result.error || '未找到相关内容'
+      
+      // 显示明显的失败提示
+      toast.warning(`⚠️ ${method}失败: ${errorMsg}`, 4000)
+    }
+    
+    console.log('=== AI智能定位结束 ===')
+  } catch (error) {
+    console.error('❌ AI智能定位失败:', error)
+    console.error('  - 错误类型:', error.name)
+    console.error('  - 错误消息:', error.message)
+    console.error('  - 错误堆栈:', error.stack)
+    
+    // 关闭加载提示
+    if (typeof loadingToastId !== 'undefined') {
+      toast.remove(loadingToastId)
+    }
+    
+    // 根据错误类型给出更具体的提示
+    let errorMessage = 'AI智能定位失败'
+    let errorIcon = '❌'
+    
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage = '无法连接到后端服务，请检查后端是否运行'
+      errorIcon = '🔌'
+    } else if (error.message.includes('HTTP 500')) {
+      errorMessage = '后端服务错误，请查看后端日志'
+      errorIcon = '⚠️'
+    } else if (error.message.includes('HTTP 400')) {
+      errorMessage = '请求参数错误'
+      errorIcon = '⚠️'
+    } else {
+      errorMessage = `AI智能定位失败: ${error.message}`
+    }
+    
+    toast.error(`${errorIcon} ${errorMessage}`, 5000)
+  }
+}
+
+// 在文档中定位到指定文本
+const handleLocateInDoc = (locateData) => {
+  console.log('=== handleLocateInDoc 开始 ===')
+  
+  // 兼容旧的字符串参数和新的对象参数
+  let searchText, fullPath
+  if (typeof locateData === 'string') {
+    searchText = locateData
+    fullPath = locateData
+  } else {
+    searchText = locateData.searchText
+    fullPath = locateData.fullPath || locateData.searchText
+  }
+  
+  console.log('1. 接收到的搜索文本:', searchText)
+  console.log('2. 完整大纲路径:', fullPath)
+  console.log('3. 搜索文本类型:', typeof searchText)
+  console.log('4. 搜索文本长度:', searchText?.length)
+  
+  if (!editor.value || !searchText) {
+    console.warn('❌ 编辑器未初始化或搜索文本为空')
+    toast.warning('无法定位：编辑器未初始化或搜索文本为空')
+    return
+  }
+
+  try {
+    const { state } = editor.value
+    const { doc } = state
+    const searchLower = searchText.toLowerCase().trim()
+    
+    console.log('4. 转换为小写:', searchLower)
+    
+    // 移除可能的编号前缀（如 "1. "、"- "、"• "）
+    // 注意：传入的searchText可能已经是纯标题，也可能包含编号
+    const cleanSearchText = searchLower.replace(/^(\d+(\.\d+)*[\s\u3000]|[-•]\s)/, '').trim()
+    
+    console.log('5. 清理后的搜索文本:', cleanSearchText)
+    console.log('6. 清理后的长度:', cleanSearchText.length)
+    
+    // 如果清理后为空，使用原始文本
+    const finalSearchText = cleanSearchText || searchLower
+    
+    console.log('7. 最终搜索文本:', finalSearchText)
+    
+    // 获取文档的完整文本
+    // 使用 editor.getText() 方法，它会正确处理换行符
+    const fullDocText = editor.value.getText({ blockSeparator: '\n' })
+    
+    console.log('7. 文档总长度:', fullDocText.length)
+    console.log('8. 文档前100字符:', fullDocText.substring(0, 100))
+    console.log('9. 换行符数量:', (fullDocText.match(/\n/g) || []).length)
+    
+    let found = false
+    let foundPos = null
+    let foundLength = 0
+    let nodeCount = 0
+    let textNodeCount = 0
+    
+    // 准备多个搜索变体
+    const searchVariants = []
+    
+    // 提取所有关键词（用于检查是否需要精确匹配）
+    const allKeywords = cleanSearchText
+      .replace(/[的和与及、，。！？；：""''（）【】《》]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 2)
+    
+    // 检测是否包含技术名称（需要精确匹配）
+    const techNames = ['NAS', 'SAN', 'HDFS', 'Ceph', 'NDB', 'MySQL', 'Hadoop', 'Oracle', 'MongoDB']
+    // 注意：cleanSearchText 是小写的，所以需要转换为大写进行比较
+    const hasTechName = techNames.some(tech => cleanSearchText.toUpperCase().includes(tech))
+    
+    console.log('8. 关键词分析:', {
+      allKeywords,
+      hasTechName,
+      cleanSearchText
+    })
+    
+    // 如果包含技术名称，只使用完整文本匹配（不使用部分关键词）
+    if (hasTechName) {
+      console.log('⚠️ 检测到技术名称，使用精确匹配模式')
+      
+      // 变体1: 完整文本
+      searchVariants.push({ text: cleanSearchText, name: '完整文本', requireAll: true })
+      
+      // 变体2: 移除所有空格和标点
+      const noSpaces = cleanSearchText.replace(/[\s\u3000、，。！？；：""''（）【】《》]/g, '')
+      if (noSpaces.length >= 3 && noSpaces !== cleanSearchText) {
+        searchVariants.push({ text: noSpaces, name: '无空格标点', requireAll: true })
+      }
+    } else {
+      // 普通文本，使用多种匹配策略
+      
+      // 变体1: 清理后的文本
+      searchVariants.push({ text: cleanSearchText, name: '清理后文本', requireAll: false })
+      
+      // 变体2: 移除所有空格和标点
+      const noSpaces = cleanSearchText.replace(/[\s\u3000、，。！？；：""''（）【】《》]/g, '')
+      if (noSpaces.length >= 3 && noSpaces !== cleanSearchText) {
+        searchVariants.push({ text: noSpaces, name: '无空格标点', requireAll: false })
+      }
+      
+      // 变体3: 提取主要关键词（最长的词）
+      if (cleanSearchText.length >= 4 && allKeywords.length > 0) {
+        const longestKeyword = allKeywords.reduce((a, b) => a.length > b.length ? a : b)
+        if (longestKeyword.length >= 3) {
+          searchVariants.push({ text: longestKeyword, name: '最长关键词', requireAll: false })
+        }
+      }
+      
+      // 变体4: 前N个字符（用于部分匹配）
+      if (cleanSearchText.length >= 5) {
+        const partial = cleanSearchText.substring(0, Math.min(8, cleanSearchText.length))
+        searchVariants.push({ text: partial, name: '前缀匹配', requireAll: false })
+      }
+    }
+    
+    console.log('8. 搜索变体:', searchVariants.map(v => `${v.name}: "${v.text}" (requireAll: ${v.requireAll})`).join(', '))
+    
+    // 临时修改：强制使用AI定位（用于测试）
+    // TODO: 测试完成后改回 if (hasTechName)
+    console.log('🔧 临时修改：强制使用AI定位进行测试')
+    if (true) {  // 原来是: if (hasTechName)
+      console.log('⚠️ 跳过简单搜索，直接使用AI智能定位')
+      console.log('🤖 启动AI智能定位...')
+      tryAILocate(searchText, fullDocText, fullPath)
+      return
+    }
+    
+    // 下面的代码暂时不会执行（因为上面强制return了）
+    /*
+    // 如果包含技术名称，直接跳过简单搜索，使用AI智能定位
+    if (hasTechName) {
+      console.log('⚠️ 包含技术名称，跳过简单搜索，直接使用AI智能定位')
+      console.log('🤖 启动AI智能定位...')
+      tryAILocate(searchText, fullDocText, fullPath)
+      return
+    }
+    */
+    
+    // 遍历文档查找匹配的文本
+    doc.descendants((node, pos) => {
+      nodeCount++
+      if (found) return false // 已找到，停止遍历
+      
+      if (node.isText) {
+        textNodeCount++
+        const text = node.text.toLowerCase()
+        const textNoSpaces = text.replace(/[\s\u3000、，。！？；：""''（）【】《》]/g, '')
+        
+        // 尝试所有搜索变体
+        for (const variant of searchVariants) {
+          let matchIndex = -1
+          let matchLength = 0
+          
+          // 先尝试直接匹配
+          matchIndex = text.indexOf(variant.text)
+          if (matchIndex !== -1) {
+            matchLength = variant.text.length
+          } else if (variant.name === '无空格标点' || variant.name === '最长关键词') {
+            // 对于无空格变体，也在无空格的文本中查找
+            const noSpaceIndex = textNoSpaces.indexOf(variant.text)
+            if (noSpaceIndex !== -1) {
+              // 找到了，但需要映射回原始文本的位置
+              // 简化处理：使用原始文本中第一次出现的位置
+              let charCount = 0
+              for (let i = 0; i < text.length; i++) {
+                if (!/[\s\u3000、，。！？；：""''（）【】《》]/.test(text[i])) {
+                  if (charCount === noSpaceIndex) {
+                    matchIndex = i
+                    // 计算实际长度（包含可能的空格和标点）
+                    let actualLength = 0
+                    let noSpaceCount = 0
+                    for (let j = i; j < text.length && noSpaceCount < variant.text.length; j++) {
+                      actualLength++
+                      if (!/[\s\u3000、，。！？；：""''（）【】《》]/.test(text[j])) {
+                        noSpaceCount++
+                      }
+                    }
+                    matchLength = actualLength
+                    break
+                  }
+                  charCount++
+                }
+              }
+            }
+          }
+          
+          if (matchIndex !== -1) {
+            foundPos = pos + matchIndex
+            foundLength = matchLength
+            found = true
+            console.log('✅ 找到匹配!')
+            console.log('  - 匹配策略:', variant.name)
+            console.log('  - 搜索文本:', variant.text)
+            console.log('  - 匹配文本:', node.text.substring(matchIndex, matchIndex + matchLength))
+            console.log('  - 位置:', foundPos)
+            console.log('  - 长度:', foundLength)
+            console.log('  - 节点文本:', node.text.substring(0, 50) + '...')
+            return false // 停止遍历
+          }
+        }
+      }
+    })
+    
+    console.log('9. 遍历完成')
+    console.log('  - 总节点数:', nodeCount)
+    console.log('  - 文本节点数:', textNodeCount)
+    console.log('  - 是否找到:', found)
+    
+    if (found && foundPos !== null) {
+      console.log('10. 开始选中文本')
+      
+      // 选中找到的文本
+      editor.value
+        .chain()
+        .focus()
+        .setTextSelection({
+          from: foundPos,
+          to: foundPos + foundLength
+        })
+        .run()
+      
+      console.log('11. 文本已选中')
+      
+      // 滚动到可见区域
+      nextTick(() => {
+        const editorElement = document.querySelector('.ProseMirror')
+        if (editorElement) {
+          const selection = window.getSelection()
+          if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0)
+            const rect = range.getBoundingClientRect()
+            
+            // 计算滚动位置，使选中的文本居中显示
+            const editorRect = editorElement.getBoundingClientRect()
+            const scrollTop = editorElement.scrollTop + rect.top - editorRect.top - (editorRect.height / 2) + (rect.height / 2)
+            
+            console.log('12. 开始滚动')
+            console.log('  - 滚动位置:', scrollTop)
+            
+            editorElement.scrollTo({
+              top: scrollTop,
+              behavior: 'smooth'
+            })
+            
+            console.log('13. 滚动完成')
+          }
+        }
+      })
+      
+      toast.success(`已定位到: ${searchText}`)
+      console.log('=== handleLocateInDoc 成功结束 ===')
+    } else {
+      console.warn('❌ 未找到匹配的文本')
+      console.warn('  - 搜索文本:', searchText)
+      console.warn('  - 清理后:', cleanSearchText)
+      console.warn('  - 文档长度:', fullDocText.length)
+      console.warn('  - 建议: 尝试AI智能定位')
+      
+      // 尝试AI智能定位
+      console.log('🤖 启动AI智能定位...')
+      tryAILocate(searchText, fullDocText, fullPath)
+    }
+  } catch (error) {
+    console.error('❌ 定位失败:', error)
+    console.error('  - 错误堆栈:', error.stack)
+    toast.error('定位失败: ' + error.message)
+    console.log('=== handleLocateInDoc 异常结束 ===')
+  }
+}
+
 // 认证成功处理（已移除，现在在 ProjectsView 中处理）
 
 // 选择项目
@@ -1017,6 +1659,28 @@ const handleSelectProject = async (project) => {
   currentProjectId.value = project.id
   currentView.value = 'editor'
   
+  // 初始化工作区服务（使用项目ID）
+  workspaceService.value = new WorkspaceService(project.id)
+  workspaceDocuments.value = workspaceService.value.getAllDocuments()
+  
+  // 如果没有文档，自动创建一个默认文档
+  if (workspaceDocuments.value.length === 0) {
+    const defaultDoc = workspaceService.value.createDocument('我的第一个文档')
+    workspaceDocuments.value = workspaceService.value.getAllDocuments()
+    activeDocumentId.value = defaultDoc.id
+    editor.value?.commands.setContent(defaultDoc.content)
+    // 加载新文档的历史记录（应该为空）
+    await loadChatHistory(defaultDoc.id)
+    toast.info('已为您创建第一个文档')
+  } else {
+    // 如果有文档，加载第一个
+    const firstDoc = workspaceDocuments.value[0]
+    activeDocumentId.value = firstDoc.id
+    editor.value?.commands.setContent(firstDoc.content)
+    // 加载第一个文档的历史记录
+    await loadChatHistory(firstDoc.id)
+  }
+  
   // 连接 WebSocket（暂时禁用，等待后端 WebSocket 服务实现）
   // TODO: 启用 WebSocket 连接用于实时 AI 对话
   // wsService.connect('ws://localhost:5000/ws')
@@ -1024,69 +1688,18 @@ const handleSelectProject = async (project) => {
   // 获取项目素材
   await fetchMaterials()
   
-  // 恢复保存的内容 (优先尝试读取新格式 doc_data_${id})
-  const savedData = localStorage.getItem(`doc_data_${project.id}`)
-  if (savedData) {
-     try {
-       const parsedData = JSON.parse(savedData)
-       if (parsedData.version && parsedData.content) {
-         editor.value?.commands.setContent(parsedData.content)
-         if (parsedData.styles) {
-           docStyles.value = parsedData.styles
-           setTimeout(() => updateEditorStyles(), 100)
-         }
-       } else {
-         // 虽然用了 doc_data key 但格式不对，尝试直接加载
-         editor.value?.commands.setContent(parsedData)
-       }
-     } catch (e) {
-       console.warn('恢复文档(新格式)失败', e)
-     }
-  } else {
-    // 降级尝试读取旧格式
-    const savedContent = localStorage.getItem(`doc_content_${project.id}`)
-    if (savedContent) {
-      try {
-        const json = JSON.parse(savedContent)
-        editor.value?.commands.setContent(json)
-      } catch (e) {
-        console.warn('恢复文档(旧格式)失败')
-      }
-    } else {
-      editor.value?.commands.setContent('')
-    }
-  }
-  
-  // 恢复快照
-  const savedSnapshots = localStorage.getItem(`doc_snapshots_${project.id}`)
-  if (savedSnapshots) {
-    try {
-      snapshots.value = JSON.parse(savedSnapshots)
-    } catch (e) {
-      console.warn('恢复快照失败')
-    }
-  } else {
-    snapshots.value = []
-  }
+  // 恢复焦点
+  restoreEditorFocus('end')
 }
 
 // 返回项目列表
 const handleBackToProjects = () => {
-  // 保存当前文档
-  if (currentProjectId.value && editor.value) {
-    const json = editor.value.getJSON()
-    // 使用新格式保存，包含 styles
-    const dataToSave = {
-        version: '1.0',
-        content: json,
-        styles: docStyles.value,
-        updated_at: new Date().toISOString()
+  // 保存当前工作区文档
+  if (activeDocumentId.value && workspaceService.value && editor.value) {
+    const currentContent = editor.value.getJSON()
+    if (currentContent) {
+      workspaceService.value.saveDocument(activeDocumentId.value, currentContent)
     }
-    
-    localStorage.setItem(`doc_data_${currentProjectId.value}`, JSON.stringify(dataToSave))
-    // 保留旧格式用于兼容
-    // localStorage.setItem(`doc_content_${currentProjectId.value}`, JSON.stringify(json)) 
-    localStorage.setItem(`doc_snapshots_${currentProjectId.value}`, JSON.stringify(snapshots.value))
   }
   
   currentView.value = 'projects'
@@ -1094,6 +1707,14 @@ const handleBackToProjects = () => {
   currentProjectId.value = null
   materials.value = []
   chatMessages.value = []
+  
+  // 清理工作区服务
+  workspaceService.value = null
+  workspaceDocuments.value = []
+  activeDocumentId.value = null
+  
+  // 清空编辑器
+  editor.value?.commands.setContent('')
   
   // 重置样式为默认值，避免污染下一个打开的项目
   docStyles.value = [...defaultStyles]
@@ -1116,8 +1737,361 @@ const checkBackendConnection = async () => {
   }
 }
 
+// ============ 工作区文档管理 ============
+
+// 全局焦点恢复函数
+const restoreEditorFocus = (position = 'end') => {
+  nextTick(() => {
+    // 强制窗口焦点
+    window.focus()
+    
+    // 多次尝试设置焦点
+    const focusAttempts = [0, 50, 150, 300, 500]
+    let focusAchieved = false
+    
+    focusAttempts.forEach(delay => {
+      setTimeout(() => {
+        if (!focusAchieved && editor.value) {
+          const editorElement = document.querySelector('.ProseMirror')
+          if (editorElement) {
+            // 强制窗口焦点
+            window.focus()
+            
+            // 设置tabindex
+            editorElement.setAttribute('tabindex', '0')
+            
+            // 直接聚焦DOM元素
+            editorElement.focus()
+            
+            // 调用TipTap的focus命令
+            editor.value.commands.focus(position)
+            
+            // 检查是否成功
+            setTimeout(() => {
+              if (document.activeElement === editorElement) {
+                focusAchieved = true
+              }
+            }, 50)
+          }
+        }
+      }, delay)
+    })
+    
+    // 禁用提示覆盖层功能，因为它会干扰右键菜单
+    // 如果500ms后仍未获得焦点，显示点击提示覆盖层
+    // setTimeout(() => {
+    //   const editorElement = document.querySelector('.ProseMirror')
+    //   if (editorElement && document.activeElement !== editorElement && !focusAchieved) {
+    //     showClickPrompt.value = true
+    //   }
+    // }, 600)
+  })
+}
+
+// 点击提示覆盖层
+const showClickPrompt = ref(false)
+
+const handleEditorClick = () => {
+  showClickPrompt.value = false
+  const editorElement = document.querySelector('.ProseMirror')
+  if (editorElement) {
+    window.focus()
+    editorElement.focus()
+    editor.value?.commands.focus('end')
+  }
+}
+
+// 处理右键菜单
+const handleContextMenu = (event) => {
+  // 记录事件信息
+  console.log('Vue层右键菜单事件:', event)
+  console.log('  - defaultPrevented:', event.defaultPrevented)
+  console.log('  - cancelable:', event.cancelable)
+  console.log('  - isTrusted:', event.isTrusted)
+  
+  // 如果默认行为被阻止，尝试恢复
+  if (event.defaultPrevented) {
+    console.warn('⚠️ 默认行为被阻止了！')
+    
+    // 停止事件传播
+    event.stopImmediatePropagation()
+    
+    // 创建并触发新事件
+    const newEvent = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      button: 2,
+      buttons: 2
+    })
+    
+    setTimeout(() => {
+      event.target.dispatchEvent(newEvent)
+      console.log('✓ 已重新触发右键事件')
+    }, 0)
+  } else {
+    console.log('✓ 默认行为未被阻止，菜单应该显示')
+  }
+  
+  // 不调用preventDefault，让默认行为发生
+}
+
+// 自定义右键菜单
+const contextMenuVisible = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+
+const showCustomContextMenu = (event) => {
+  event.preventDefault()
+  contextMenuPosition.value = {
+    x: event.clientX,
+    y: event.clientY
+  }
+  contextMenuVisible.value = true
+}
+
+const hideContextMenu = () => {
+  contextMenuVisible.value = false
+}
+
+const handleContextMenuAction = async (action) => {
+  hideContextMenu()
+  
+  if (!editor.value) return
+  
+  try {
+    switch (action) {
+      case 'cut':
+        if (hasSelection.value) {
+          const selectedText = editor.value.state.doc.textBetween(
+            editor.value.state.selection.from,
+            editor.value.state.selection.to
+          )
+          await navigator.clipboard.writeText(selectedText)
+          editor.value.commands.deleteSelection()
+          toast.success('已剪切')
+        }
+        break
+        
+      case 'copy':
+        if (hasSelection.value) {
+          const selectedText = editor.value.state.doc.textBetween(
+            editor.value.state.selection.from,
+            editor.value.state.selection.to
+          )
+          await navigator.clipboard.writeText(selectedText)
+          toast.success('已复制')
+        }
+        break
+        
+      case 'paste':
+        try {
+          const text = await navigator.clipboard.readText()
+          editor.value.commands.insertContent(text)
+          toast.success('已粘贴')
+        } catch (err) {
+          toast.error('粘贴失败，请使用 Ctrl+V')
+        }
+        break
+        
+      case 'selectAll':
+        editor.value.commands.selectAll()
+        toast.success('已全选')
+        break
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    toast.error('操作失败: ' + error.message)
+  }
+}
+
+// 监听键盘事件，按任意键关闭提示
+const handleKeyPress = (e) => {
+  if (showClickPrompt.value) {
+    showClickPrompt.value = false
+    const editorElement = document.querySelector('.ProseMirror')
+    if (editorElement) {
+      window.focus()
+      editorElement.focus()
+      editor.value?.commands.focus('end')
+    }
+  }
+}
+
+const handleSelectDocument = async (doc) => {
+  console.log('=== 切换文档 ===')
+  console.log('目标文档:', doc)
+  console.log('当前活动文档ID:', activeDocumentId.value)
+  
+  // 保存当前文档
+  if (activeDocumentId.value && workspaceService.value) {
+    const currentContent = editor.value?.getJSON()
+    console.log('保存当前文档内容:', currentContent)
+    if (currentContent) {
+      const saved = workspaceService.value.saveDocument(activeDocumentId.value, currentContent)
+      console.log('保存结果:', saved)
+    }
+  }
+
+  // 切换到新文档
+  activeDocumentId.value = doc.id
+  console.log('设置新文档内容:', doc.content)
+  editor.value?.commands.setContent(doc.content)
+  
+  // 加载该文档的历史记录
+  await loadChatHistory(doc.id)
+  
+  // 验证内容是否正确设置
+  setTimeout(() => {
+    const actualContent = editor.value?.getJSON()
+    console.log('实际编辑器内容:', actualContent)
+  }, 100)
+  
+  // 恢复焦点
+  restoreEditorFocus('end')
+  
+  toast.success(`已切换到: ${doc.name}`)
+  console.log('=== 切换完成 ===')
+}
+
+const handleCreateDocument = () => {
+  if (!workspaceService.value) return
+
+  const newDoc = workspaceService.value.createDocument('未命名文档')
+  workspaceDocuments.value = workspaceService.value.getAllDocuments()
+  activeDocumentId.value = newDoc.id
+  
+  // 设置内容
+  editor.value?.commands.setContent(newDoc.content)
+  
+  // 恢复焦点
+  restoreEditorFocus('start')
+  
+  toast.success('已创建新文档')
+}
+
+const handleRenameDocument = (docId, newName) => {
+  if (!workspaceService.value) return
+
+  try {
+    workspaceService.value.renameDocument(docId, newName)
+    workspaceDocuments.value = workspaceService.value.getAllDocuments()
+    toast.success('重命名成功')
+  } catch (error) {
+    toast.error(error.message)
+  }
+}
+
+const handleDeleteDocument = (docId) => {
+  if (!workspaceService.value) return
+
+  // 如果只剩一个文档，不允许删除
+  if (workspaceDocuments.value.length === 1) {
+    toast.warning('至少需要保留一个文档')
+    return
+  }
+
+  workspaceService.value.deleteDocument(docId)
+  workspaceDocuments.value = workspaceService.value.getAllDocuments()
+
+  // 如果删除的是当前文档，切换到第一个文档
+  if (activeDocumentId.value === docId) {
+    const firstDoc = workspaceDocuments.value[0]
+    activeDocumentId.value = firstDoc.id
+    editor.value?.commands.setContent(firstDoc.content)
+    
+    // 立即强制激活窗口和编辑器
+    // 使用 setTimeout 0 确保在 confirm 对话框关闭后执行
+    setTimeout(() => {
+      // 强制激活窗口
+      window.focus()
+      
+      // 触发一个点击事件来激活窗口
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true
+      })
+      document.body.dispatchEvent(clickEvent)
+      
+      // 恢复焦点
+      restoreEditorFocus('end')
+    }, 0)
+  }
+
+  toast.success('文档已删除')
+}
+
+// ============================================
+
 // 组件挂载
 onMounted(async () => {
+  // 确保窗口获得焦点
+  window.focus()
+  
+  // 等待编辑器完全初始化
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // 强制启用编辑器的右键菜单 - 使用纯DOM方式
+  nextTick(() => {
+    const editorElement = document.querySelector('.ProseMirror')
+    if (editorElement) {
+      console.log('✓ 找到编辑器元素，准备启用右键菜单')
+      
+      // 方案：完全不添加任何监听器，让浏览器自然处理
+      // 移除contenteditable可能导致的问题
+      editorElement.setAttribute('oncontextmenu', 'return true;')
+      
+      console.log('✓ 已设置oncontextmenu属性')
+      console.log('✓ 编辑器应该可以显示右键菜单了')
+    } else {
+      // 这是正常的，在项目列表页面时编辑器还没有加载
+      console.log('ℹ️ 编辑器元素未加载（可能在项目列表页面）')
+    }
+  })
+  
+  // 注意：不再克隆元素，因为这会破坏TipTap的功能
+  // 也不再添加任何contextmenu监听器
+  
+  // 添加窗口焦点监听器
+  // 当窗口重新获得焦点时，自动恢复编辑器焦点
+  const handleWindowFocus = () => {
+    // 延迟一下，确保窗口完全激活
+    setTimeout(() => {
+      if (activeDocumentId.value && editor.value) {
+        const editorElement = document.querySelector('.ProseMirror')
+        if (editorElement && document.activeElement !== editorElement) {
+          editorElement.focus()
+          editor.value.commands.focus('end')
+        }
+      }
+    }, 100)
+  }
+  
+  window.addEventListener('focus', handleWindowFocus)
+  
+  // 添加键盘监听器
+  window.addEventListener('keydown', handleKeyPress)
+  
+  // 点击外部关闭自定义右键菜单
+  window.addEventListener('click', hideContextMenu)
+  window.addEventListener('contextmenu', (e) => {
+    // 如果不是在编辑器上右键，隐藏自定义菜单
+    const editor = document.querySelector('.ProseMirror')
+    if (editor && !editor.contains(e.target)) {
+      hideContextMenu()
+    }
+  })
+  
+  // 等待编辑器完全初始化
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // 注意：工作区服务现在在 handleSelectProject 中初始化
+  // 这样每个项目都有独立的文档存储空间
+  
   // 加载系统字体
   if (window.electronAPI && window.electronAPI.getSystemFonts) {
      try {
@@ -1219,6 +2193,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', handleGlobalMouseMove)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
+  window.removeEventListener('keydown', handleKeyPress)
+  window.removeEventListener('click', hideContextMenu)
+  window.removeEventListener('contextmenu', hideContextMenu)
   
   editor.value?.destroy()
   wsService.disconnect()
@@ -1231,5 +2208,48 @@ onBeforeUnmount(() => {
 <style scoped>
 .app-container {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft YaHei', sans-serif;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(-50px);
+  }
+  50% {
+    transform: scale(1.05) translateY(0);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 </style>

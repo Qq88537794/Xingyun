@@ -41,14 +41,27 @@ class AgentMessage:
     
     def to_llm_format(self) -> Dict[str, Any]:
         """转换为LLM消息格式"""
-        msg = {"role": self.role, "content": self.content}
+        msg = {"role": self.role}
+        
+        # 内容字段 - 某些情况下可以为空
+        if self.content:
+            msg["content"] = self.content
+        elif self.role != "assistant" or not self.tool_calls:
+            # 如果不是assistant的tool_calls消息，content不能为空
+            msg["content"] = ""
         
         if self.role == "assistant" and self.tool_calls:
             msg["tool_calls"] = self.tool_calls
+            # 如果有tool_calls，content可以为None或空字符串
+            if not self.content:
+                msg["content"] = None
         
         if self.role == "tool":
             msg["tool_call_id"] = self.tool_call_id
             msg["name"] = self.name
+            # 确保content存在
+            if not self.content:
+                msg["content"] = "{}"
         
         return msg
 

@@ -8,6 +8,8 @@ from .user import user_bp
 from .ai_v2 import ai_bp
 from .export import export_bp
 from .images import images_bp
+from .document import document_bp
+from .ai_locate import ai_locate_bp
 
 
 def register_blueprints(app):
@@ -20,4 +22,6 @@ def register_blueprints(app):
     app.register_blueprint(ai_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(images_bp)
+    app.register_blueprint(document_bp)
+    app.register_blueprint(ai_locate_bp)
 
